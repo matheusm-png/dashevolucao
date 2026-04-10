@@ -1,394 +1,253 @@
-// ============================================================
-// DASHBOARD EVOLUÇÃO — Apps Script Backend
-// Planilha: 1QMS8QfKbEvVwdIRI9zZlF_8ilO-Ap-Lmske_PZ5_m-8
-// ============================================================
+/**
+ * DASHBOARD DE PERFORMANCE - ABRIL 2026
+ * Backend Google Apps Script
+ */
 
-var SPREADSHEET_ID = '1QMS8QfKbEvVwdIRI9zZlF_8ilO-Ap-Lmske_PZ5_m-8';
+const SPREADSHEET_ID = '1QMS8QfKbEvVwdIRI9zZlF_8ilO-Ap-Lmske_PZ5_m-8';
+const ANO_ALVO = 2026;
+const MES_ALVO = 3; // Abril (0-indexed no JS, mas vamos usar Date.getMonth())
 
-function doGet(e) {
+function doGet() {
   try {
-    var dados = consolidarDados();
-    var output = ContentService
-      .createTextOutput(JSON.stringify(dados))
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    
+    const metas = getMetas(ss);
+    const dadosMídia = getDadosMidia(ss);
+    const dadosLeads = getDadosLeads(ss);
+    
+    const response = processarDashboard(metas, dadosMídia, dadosLeads);
+    
+    return ContentService.createTextOutput(JSON.stringify(response))
       .setMimeType(ContentService.MimeType.JSON);
-    return output;
-  } catch (err) {
-    var erro = { error: true, message: err.message };
-    return ContentService
-      .createTextOutput(JSON.stringify(erro))
+      
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({ error: e.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-// ============================================================
-// CONSOLIDAÇÃO PRINCIPAL
-// ============================================================
-
-function consolidarDados() {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-  var metas       = lerMetas(ss);
-  var metaAds     = lerMetaAds(ss);
-  var googleAds   = lerGoogleAds(ss);
-  var leadsGerais = lerLeadsGerais(ss);
-
-  // ---- Datas do mês atual ----
-  var hoje     = new Date();
-  var ano      = hoje.getFullYear();
-  var mes      = hoje.getMonth(); // 0-based
-  var diaHoje  = hoje.getDate();
-
-  var ultimoDiaMes = new Date(ano, mes + 1, 0).getDate();
-  var diasCorridos = diaHoje;
-  var diasRestantes = ultimoDiaMes - diaHoje;
-
-  // ---- Somar investimentos do mês ----
-  var investMeta   = somarCampo(metaAds, 'investimento');
-  var investGoogle = somarCampo(googleAds, 'custo');
-  var investTotal  = investMeta + investGoogle;
-
-  // ---- Totais do mês (LEADS GERAIS é fonte principal) ----
-  var totalLeads        = somarCampo(leadsGerais, 'leads');
-  var totalAgendamentos = somarCampo(leadsGerais, 'agendamentos');
-  var totalAGQ          = somarCampo(leadsGerais, 'agq');
-
-  // ---- CPL e CPLag ----
-  var cpl   = totalLeads        > 0 ? investTotal / totalLeads        : 0;
-  var cplag = totalAgendamentos > 0 ? investTotal / totalAgendamentos : 0;
-
-  // ---- Pace ----
-  var mediaDiariaLeads        = diasCorridos > 0 ? totalLeads        / diasCorridos : 0;
-  var mediaDiariaAgendamentos = diasCorridos > 0 ? totalAgendamentos / diasCorridos : 0;
-  var mediaDiariaAGQ          = diasCorridos > 0 ? totalAGQ          / diasCorridos : 0;
-
-  var faltamLeads        = Math.max(0, metas.leads        - totalLeads);
-  var faltamAgendamentos = Math.max(0, metas.agendamentos - totalAgendamentos);
-  var faltamAGQ          = Math.max(0, metas.agq          - totalAGQ);
-
-  var diasParaCalculo = diasRestantes > 0 ? diasRestantes : 1;
-  var necessarioPorDiaLeads        = faltamLeads        / diasParaCalculo;
-  var necessarioPorDiaAgendamentos = faltamAgendamentos / diasParaCalculo;
-  var necessarioPorDiaAGQ          = faltamAGQ          / diasParaCalculo;
-
-  // ---- Série diária consolidada ----
-  var serieDiaria = construirSerieDiaria(
-    ano, mes, ultimoDiaMes,
-    metaAds, googleAds, leadsGerais
-  );
-
-  return {
-    metas: metas,
-    investimento_total_mes: arredondar(investTotal),
-    resumo_mes: {
-      leads:              totalLeads,
-      agendamentos:       totalAgendamentos,
-      agq:                totalAGQ,
-      cpl:                arredondar(cpl),
-      cplag:              arredondar(cplag),
-      investimento_meta:  arredondar(investMeta),
-      investimento_google: arredondar(investGoogle)
-    },
-    pace: {
-      dias_corridos:                  diasCorridos,
-      dias_restantes:                 diasRestantes,
-      leads_necessarios_por_dia:      arredondar(necessarioPorDiaLeads),
-      agendamentos_necessarios_por_dia: arredondar(necessarioPorDiaAgendamentos),
-      agq_necessarios_por_dia:        arredondar(necessarioPorDiaAGQ),
-      leads_media_atual_por_dia:      arredondar(mediaDiariaLeads),
-      agendamentos_media_atual_por_dia: arredondar(mediaDiariaAgendamentos),
-      agq_media_atual_por_dia:        arredondar(mediaDiariaAGQ)
-    },
-    serie_diaria: serieDiaria
-  };
-}
-
-// ============================================================
-// LEITURA — ABA METAS
-// ============================================================
-
-function lerMetas(ss) {
-  var aba = ss.getSheetByName('METAS');
-  if (!aba) return { leads: 650, agendamentos: 152, agq: 137, cpl_max: 173.08, cplag_max: 740.13 };
-
-  var dados = aba.getDataRange().getValues();
-  var metas = { leads: 650, agendamentos: 152, agq: 137, cpl_max: 173.08, cplag_max: 740.13 };
-
-  // Formato esperado: coluna A = nome da meta, coluna B = valor
-  for (var i = 1; i < dados.length; i++) {
-    var nome  = String(dados[i][0]).toLowerCase().trim();
-    var valor = parseFloat(String(dados[i][1]).replace(',', '.')) || 0;
-
-    if (nome.includes('lead'))          metas.leads          = valor;
-    if (nome.includes('agendamento'))   metas.agendamentos   = valor;
-    if (nome.includes('agq'))           metas.agq            = valor;
-    if (nome.includes('cpl') && nome.includes('max') && !nome.includes('ag'))
-                                        metas.cpl_max        = valor;
-    if (nome.includes('cplag') || (nome.includes('cpl') && nome.includes('ag')))
-                                        metas.cplag_max      = valor;
-  }
-
+function getMetas(ss) {
+  const sheet = ss.getSheetByName('METAS');
+  const data = sheet.getDataRange().getValues();
+  // Assume estrutura: [Nome, Valor]
+  const metas = {};
+  data.forEach(row => {
+    const nome = row[0].toString().toLowerCase();
+    const valor = row[1];
+    if (nome.includes('leads')) metas.leads = valor;
+    if (nome.includes('agendamentos')) metas.agendamentos = valor;
+    if (nome.includes('agq')) metas.agq = valor;
+    if (nome.includes('cpl max')) metas.cpl_max = valor;
+    if (nome.includes('cplag max')) metas.cplag_max = valor;
+  });
   return metas;
 }
 
-// ============================================================
-// LEITURA — ABA META ADS
-// Colunas: Ad Name, Ad Set Name, Impressions, Results,
-//          Cost per Result, Amount Spent, CPM,
-//          Link Clicks, CPC, CTR, Day
-// ============================================================
-
-function lerMetaAds(ss) {
-  var aba = ss.getSheetByName('META ADS');
-  if (!aba) return [];
-
-  var dados = aba.getDataRange().getValues();
-  if (dados.length < 2) return [];
-
-  var cabecalho = dados[0].map(function(c) { return String(c).trim().toLowerCase(); });
-
-  var idxAmountSpent  = encontrarColuna(cabecalho, ['amount spent', 'spent']);
-  var idxResults      = encontrarColuna(cabecalho, ['results']);
-  var idxLinkClicks   = encontrarColuna(cabecalho, ['link clicks', 'clicks']);
-  var idxDay          = encontrarColuna(cabecalho, ['day', 'data', 'date']);
-
-  var hoje     = new Date();
-  var anoAtual = hoje.getFullYear();
-  var mesAtual = hoje.getMonth(); // 0-based
-
-  var agregado = {}; // chave: 'YYYY-MM-DD'
-
-  for (var i = 1; i < dados.length; i++) {
-    var linha = dados[i];
-
-    var diaRaw = linha[idxDay];
-    var chave  = normalizarData(diaRaw);
-    if (!chave) continue;
-
-    // Filtrar apenas mês atual
-    var partes = chave.split('-');
-    if (parseInt(partes[0]) !== anoAtual || parseInt(partes[1]) - 1 !== mesAtual) continue;
-
-    if (!agregado[chave]) {
-      agregado[chave] = { investimento: 0, leads: 0, cliques: 0 };
-    }
-
-    agregado[chave].investimento += toNum(idxAmountSpent >= 0 ? linha[idxAmountSpent] : 0);
-    agregado[chave].leads        += toNum(idxResults    >= 0 ? linha[idxResults]      : 0);
-    agregado[chave].cliques      += toNum(idxLinkClicks >= 0 ? linha[idxLinkClicks]   : 0);
-  }
-
-  return objetoParaArray(agregado);
-}
-
-// ============================================================
-// LEITURA — ABA GOOGLE ADS
-// Colunas: Data, Campanha, Grupo, Ad ID, Ad Name,
-//          Impressões, Cliques, Custo, Conversões, Custo/Conv
-// ============================================================
-
-function lerGoogleAds(ss) {
-  var aba = ss.getSheetByName('GOOGLE ADS');
-  if (!aba) return [];
-
-  var dados = aba.getDataRange().getValues();
-  if (dados.length < 2) return [];
-
-  var cabecalho = dados[0].map(function(c) { return String(c).trim().toLowerCase(); });
-
-  var idxData        = encontrarColuna(cabecalho, ['data', 'date', 'dia', 'day']);
-  var idxCusto       = encontrarColuna(cabecalho, ['custo', 'cost', 'spend']);
-  var idxConversoes  = encontrarColuna(cabecalho, ['conversões', 'conversoes', 'conversions']);
-
-  var hoje     = new Date();
-  var anoAtual = hoje.getFullYear();
-  var mesAtual = hoje.getMonth(); // 0-based
-
-  var agregado = {};
-
-  for (var i = 1; i < dados.length; i++) {
-    var linha  = dados[i];
-    var chave  = normalizarData(idxData >= 0 ? linha[idxData] : null);
-    if (!chave) continue;
-
-    // Filtrar apenas mês atual
-    var partes = chave.split('-');
-    if (parseInt(partes[0]) !== anoAtual || parseInt(partes[1]) - 1 !== mesAtual) continue;
-
-    if (!agregado[chave]) {
-      agregado[chave] = { custo: 0, leads: 0 };
-    }
-
-    agregado[chave].custo  += toNum(idxCusto      >= 0 ? linha[idxCusto]      : 0);
-    agregado[chave].leads  += toNum(idxConversoes >= 0 ? linha[idxConversoes] : 0);
-  }
-
-  return objetoParaArray(agregado);
-}
-
-// ============================================================
-// LEITURA — ABA LEADS GERAIS
-// Colunas: Empresa, Data, Status, Origem, Campanha
-// ============================================================
-
-function lerLeadsGerais(ss) {
-  var aba = ss.getSheetByName('LEADS GERAIS');
-  if (!aba) return [];
-
-  var dados = aba.getDataRange().getValues();
-  if (dados.length < 2) return [];
-
-  var cabecalho = dados[0].map(function(c) { return String(c).trim().toLowerCase(); });
-
-  var idxData   = encontrarColuna(cabecalho, ['data', 'date', 'dia']);
-  var idxStatus = encontrarColuna(cabecalho, ['status']);
-
-  var hoje = new Date();
-  var anoAtual = hoje.getFullYear();
-  var mesAtual = hoje.getMonth();
-
-  var agregado = {};
-
-  for (var i = 1; i < dados.length; i++) {
-    var linha  = dados[i];
-    var dataRaw = idxData >= 0 ? linha[idxData] : null;
-    var chave  = normalizarData(dataRaw);
-    if (!chave) continue;
-
-    // Filtrar apenas mês atual
-    var partes = chave.split('-');
-    var anoLinha = parseInt(partes[0]);
-    var mesLinha = parseInt(partes[1]) - 1; // 0-based
-
-    if (anoLinha !== anoAtual || mesLinha !== mesAtual) continue;
-
-    if (!agregado[chave]) {
-      agregado[chave] = { leads: 0, agendamentos: 0, agq: 0 };
-    }
-
-    var status = String(idxStatus >= 0 ? linha[idxStatus] : '').trim().toLowerCase();
-
-    agregado[chave].leads++; // qualquer registro é um lead
-
-    if (status === 'agendado' || status === 'agendamento') {
-      agregado[chave].agendamentos++;
-    }
-
-    if (status === 'agq' || status === 'agqualificado' || status === 'ag qualificado' || status === 'ag. qualificado') {
-      agregado[chave].agq++;
+function getDadosMidia(ss) {
+  const metaSheet = ss.getSheetByName('META ADS');
+  const googleSheet = ss.getSheetByName('GOOGLE ADS');
+  
+  const metaData = metaSheet.getDataRange().getValues();
+  const googleData = googleSheet.getDataRange().getValues();
+  
+  const registros = { meta: [], google: [] };
+  
+  // Processar Meta Ads
+  // Colunas: Ad Name (0), Ad Set Name (1), Impressions (2), Results (leads) (3), Cost per Result (4), Amount Spent (5), ..., Day (10)
+  const metaHeaders = metaData[0];
+  for (let i = 1; i < metaData.length; i++) {
+    const row = metaData[i];
+    const dataRow = new Date(row[10]);
+    if (dataRow.getFullYear() === ANO_ALVO && dataRow.getMonth() === MES_ALVO) {
+      registros.meta.push({
+        campanha: row[0],
+        leads: Number(row[3]) || 0,
+        investimento: Number(row[5]) || 0,
+        data: Utilities.formatDate(dataRow, "GMT-3", "yyyy-MM-dd")
+      });
     }
   }
-
-  return objetoParaArray(agregado);
-}
-
-// ============================================================
-// SÉRIE DIÁRIA CONSOLIDADA
-// ============================================================
-
-function construirSerieDiaria(ano, mes, ultimoDia, metaAds, googleAds, leadsGerais) {
-  // Indexar por data
-  var idxMeta   = indexarPorData(metaAds);
-  var idxGoogle = indexarPorData(googleAds);
-  var idxLeads  = indexarPorData(leadsGerais);
-
-  var serie = [];
-
-  for (var d = 1; d <= ultimoDia; d++) {
-    var chave = formatarChave(ano, mes, d);
-
-    var investMeta   = idxMeta[chave]   ? idxMeta[chave].investimento   : 0;
-    var investGoogle = idxGoogle[chave] ? idxGoogle[chave].custo         : 0;
-
-    serie.push({
-      data:         chave,
-      leads:        idxLeads[chave] ? idxLeads[chave].leads        : 0,
-      agendamentos: idxLeads[chave] ? idxLeads[chave].agendamentos : 0,
-      agq:          idxLeads[chave] ? idxLeads[chave].agq          : 0,
-      investimento: arredondar(investMeta + investGoogle)
-    });
-  }
-
-  return serie;
-}
-
-// ============================================================
-// UTILITÁRIOS
-// ============================================================
-
-function encontrarColuna(cabecalho, candidatos) {
-  for (var i = 0; i < cabecalho.length; i++) {
-    for (var j = 0; j < candidatos.length; j++) {
-      if (cabecalho[i].includes(candidatos[j])) return i;
+  
+  // Processar Google Ads
+  // Colunas: Data (0), Campanha (1), ..., Cliques (6), Custo (7), Conversões (8)
+  for (let i = 1; i < googleData.length; i++) {
+    const row = googleData[i];
+    const dataRow = new Date(row[0]);
+    if (dataRow.getFullYear() === ANO_ALVO && dataRow.getMonth() === MES_ALVO) {
+      registros.google.push({
+        campanha: row[1],
+        investimento: Number(row[7]) || 0,
+        conversoes: Number(row[8]) || 0,
+        data: Utilities.formatDate(dataRow, "GMT-3", "yyyy-MM-dd")
+      });
     }
   }
-  return -1;
+  
+  return registros;
 }
 
-function normalizarData(valor) {
-  if (!valor) return null;
-
-  if (valor instanceof Date) {
-    return formatarChave(valor.getFullYear(), valor.getMonth(), valor.getDate());
-  }
-
-  var str = String(valor).trim();
-  if (!str || str === '') return null;
-
-  // Tenta DD/MM/YYYY
-  var m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m1) return m1[3] + '-' + pad(m1[2]) + '-' + pad(m1[1]);
-
-  // Tenta YYYY-MM-DD
-  var m2 = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m2) return m2[1] + '-' + m2[2] + '-' + m2[3];
-
-  // Tenta número serial do Google Sheets
-  var num = parseFloat(str);
-  if (!isNaN(num) && num > 40000) {
-    var d = new Date((num - 25569) * 86400 * 1000);
-    return formatarChave(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  }
-
-  return null;
-}
-
-function formatarChave(ano, mes, dia) {
-  // mes é 0-based
-  return ano + '-' + pad(mes + 1) + '-' + pad(dia);
-}
-
-function pad(n) {
-  return n < 10 ? '0' + n : String(n);
-}
-
-function toNum(v) {
-  if (v === null || v === undefined || v === '') return 0;
-  var s = String(v).replace(/[R$\s]/g, '').replace(',', '.');
-  return parseFloat(s) || 0;
-}
-
-function arredondar(n) {
-  return Math.round(n * 100) / 100;
-}
-
-function somarCampo(arr, campo) {
-  return arr.reduce(function(acc, item) {
-    return acc + (item[campo] || 0);
-  }, 0);
-}
-
-function objetoParaArray(obj) {
-  return Object.keys(obj).map(function(k) {
-    var item = obj[k];
-    item.data = k;
-    return item;
+function getDadosLeads(ss) {
+  const sheet = ss.getSheetByName('LEADS GERAIS');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  const colIndex = {};
+  headers.forEach((h, i) => {
+    const header = h.toString().toLowerCase().trim();
+    if (header === 'data') colIndex.data = i;
+    if (header === 'status') colIndex.status = i;
+    if (header === 'origem') colIndex.origem = i;
+    if (header === 'campanha') colIndex.campanha = i;
+    if (header === 'público' || header === 'publico') colIndex.publico = i;
+    if (header === 'tipo') colIndex.tipo = i;
   });
+  
+  const registros = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[colIndex.data]) continue;
+    
+    const dataRow = new Date(row[colIndex.data]);
+    
+    if (dataRow && !isNaN(dataRow.getTime()) && dataRow.getFullYear() === ANO_ALVO && dataRow.getMonth() === MES_ALVO) {
+      const status = (row[colIndex.status] || "").toString().toLowerCase().trim();
+      registros.push({
+        data: Utilities.formatDate(dataRow, "GMT-3", "yyyy-MM-dd"),
+        status: status,
+        origem: (row[colIndex.origem] || "").toString().toLowerCase().trim(),
+        campanha: row[colIndex.campanha] || "",
+        publico: row[colIndex.publico] || "Não Identificado",
+        tipo: row[colIndex.tipo] || "",
+        isLead: true,
+        isAgendamento: status === "agendamento" || status === "agendamento q",
+        isAGQ: status === "agendamento q",
+        isTentativa: status === "em tentativa",
+        isDescartado: status === "descartado"
+      });
+    }
+  }
+  return registros;
 }
 
-function indexarPorData(arr) {
-  var idx = {};
-  arr.forEach(function(item) {
-    if (item.data) idx[item.data] = item;
+function processarDashboard(metas, midia, leads) {
+  const resumo_mes = {
+    leads: 0,
+    agendamentos: 0,
+    agq: 0,
+    tentativa: 0,
+    descartado: 0,
+    investimento_meta: 0,
+    investimento_google: 0,
+    total_investimento: 0
+  };
+  
+  const serie_diaria = {};
+  const breakdown_google = {};
+  const breakdown_meta = {};
+  
+  // Totalizar Investimento
+  midia.meta.forEach(m => {
+    resumo_mes.investimento_meta += m.investimento;
+    if (!serie_diaria[m.data]) serie_diaria[m.data] = criarObjetoDia(m.data);
+    serie_diaria[m.data].investimento += m.investimento;
   });
-  return idx;
+  
+  midia.google.forEach(g => {
+    resumo_mes.investimento_google += g.investimento;
+    if (!serie_diaria[g.data]) serie_diaria[g.data] = criarObjetoDia(g.data);
+    serie_diaria[g.data].investimento += g.investimento;
+    
+    // Agrupamento Google
+    let grupo = "Outros";
+    const nome = g.campanha.toLowerCase();
+    if (nome.includes("avaliacaode_desempenho") || nome.includes("youperforma")) grupo = "YOUperforma";
+    else if (nome.includes("youeduca")) grupo = "YOUeduca";
+    else if (nome.includes("yourh") || nome.includes("sistema_de_rh")) grupo = "YOUrh";
+    
+    if (!breakdown_google[grupo]) breakdown_google[grupo] = criarObjetoBreakdown(grupo);
+    breakdown_google[grupo].investimento += g.investimento;
+  });
+  
+  resumo_mes.total_investimento = resumo_mes.investimento_meta + resumo_mes.investimento_google;
+  
+  // Processar Leads
+  leads.forEach(l => {
+    resumo_mes.leads++;
+    if (l.isAgendamento) resumo_mes.agendamentos++;
+    if (l.isAGQ) resumo_mes.agq++;
+    if (l.isTentativa) resumo_mes.tentativa++;
+    if (l.isDescartado) resumo_mes.descartado++;
+    
+    // Série Diária
+    if (!serie_diaria[l.data]) serie_diaria[l.data] = criarObjetoDia(l.data);
+    serie_diaria[l.data].leads++;
+    if (l.isAgendamento) serie_diaria[l.data].agendamentos++;
+    if (l.isAGQ) serie_diaria[l.data].agq++;
+    if (l.isTentativa) serie_diaria[l.data].tentativa++;
+    if (l.isDescartado) serie_diaria[l.data].descartado++;
+    
+    // Breakdown
+    if (l.origem.includes("google")) {
+      let grupo = "Outros";
+      const nomeCamp = (l.campanha || "").toLowerCase();
+      if (nomeCamp.includes("avaliacao") || nomeCamp.includes("performa")) grupo = "YOUperforma";
+      else if (nomeCamp.includes("educa")) grupo = "YOUeduca";
+      else if (nomeCamp.includes("rh")) grupo = "YOUrh";
+      
+      if (!breakdown_google[grupo]) breakdown_google[grupo] = criarObjetoBreakdown(grupo);
+      breakdown_google[grupo].leads++;
+      if (l.isAgendamento) breakdown_google[grupo].agendamentos++;
+      if (l.isAGQ) breakdown_google[grupo].agq++;
+    } else {
+      // Meta (ou outros) por Público
+      const publico = l.publico || "Desconhecido";
+      if (!breakdown_meta[publico]) breakdown_meta[publico] = criarObjetoBreakdown(publico);
+      breakdown_meta[publico].leads++;
+      if (l.isAgendamento) breakdown_meta[publico].agendamentos++;
+      if (l.isAGQ) breakdown_meta[publico].agq++;
+      
+      // Atribuir investimento proporcional ou direto se possível (simplificado aqui por público)
+      // Nota: Atribuição de investimento Meta por público em LEADS GERAIS exige match com META ADS.
+      // Aqui somamos o investimento total do Meta no breakdown global do Meta se necessário.
+    }
+  });
+
+  // Cálculos de Pace
+  const hoje = new Date();
+  const diaAtual = hoje.getFullYear() === ANO_ALVO && hoje.getMonth() === MES_ALVO ? hoje.getDate() : 30; // Se não for abril, assume fim do mês para teste
+  const totalDiasMes = new Date(ANO_ALVO, MES_ALVO + 1, 0).getDate();
+  const diasRestantes = totalDiasMes - diaAtual;
+  
+  const pace = {
+    dias_corridos: diaAtual,
+    dias_restantes: diasRestantes,
+    leads_necessarios_por_dia: Math.max(0, (metas.leads - resumo_mes.leads) / (diasRestantes || 1)),
+    agendamentos_necessarios_por_dia: Math.max(0, (metas.agendamentos - resumo_mes.agendamentos) / (diasRestantes || 1)),
+    agq_necessarios_por_dia: Math.max(0, (metas.agq - resumo_mes.agq) / (diasRestantes || 1)),
+    leads_media_atual_por_dia: resumo_mes.leads / diaAtual,
+    agendamentos_media_atual_por_dia: resumo_mes.agendamentos / diaAtual,
+    agq_media_atual_por_dia: resumo_mes.agq / diaAtual
+  };
+
+  return {
+    metas,
+    resumo_mes: {
+      ...resumo_mes,
+      cpl: resumo_mes.leads > 0 ? resumo_mes.total_investimento / resumo_mes.leads : 0,
+      cplag: resumo_mes.agendamentos > 0 ? resumo_mes.total_investimento / resumo_mes.agendamentos : 0
+    },
+    pace,
+    serie_diaria: Object.values(serie_diaria).sort((a,b) => a.data.localeCompare(b.data)),
+    breakdown_google: Object.values(breakdown_google),
+    breakdown_meta: Object.values(breakdown_meta),
+    updated_at: new Date().toISOString()
+  };
+}
+
+function criarObjetoDia(data) {
+  return { data, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, investimento: 0 };
+}
+
+function criarObjetoBreakdown(nome) {
+  return { nome, leads: 0, agendamentos: 0, agq: 0, investimento: 0 };
 }

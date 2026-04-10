@@ -37,8 +37,8 @@ async function fetchData() {
         dashboardData = data;
         updateUI();
     } catch (error) {
-        console.error("Erro ao buscar dados:", error);
-        alert("Erro ao buscar dados do script. Verifique a configuração do proxy.");
+        console.error("Erro detalhado:", error);
+        alert(`Erro ao buscar dados: ${error.message}\nVerifique se o Apps Script está publicado como 'Qualquer pessoa' e se o deploy no Netlify terminou.`);
     } finally {
         showLoading(false);
     }
