@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Evolução — Performance de Campanhas</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-title">
+        <span class="header-logo">⚡</span>
+        <h1>Dashboard Evolução</h1>
+        <span class="header-subtitle">Performance de Campanhas</span>
+      </div>
+      <div class="header-meta">
+        <span id="mes-referencia" class="mes-ref"></span>
+        <span id="last-update" class="last-update">Carregando...</span>
+        <button id="btn-refresh" class="btn-refresh" title="Atualizar agora">↻</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== LOADING ===== -->
+  <div id="loading" class="loading-overlay">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p>Buscando dados...</p>
+    </div>
+  </div>
+
+  <!-- ===== ERROR ===== -->
+  <div id="error-box" class="error-box hidden">
+    <span class="error-icon">⚠️</span>
+    <p id="error-msg">Falha ao carregar os dados.</p>
+    <button onclick="carregarDados()" class="btn-retry">Tentar novamente</button>
+  </div>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main id="main-content" class="main hidden">
+
+    <!-- BLOCO 1 — BIG NUMBERS -->
+    <section class="section">
+      <h2 class="section-title">Visão Geral do Mês</h2>
+      <div class="cards-grid">
+
+        <div class="card card-invest">
+          <div class="card-label">Investimento Total</div>
+          <div id="bn-invest" class="card-value">—</div>
+          <div class="card-sub">
+            <span id="bn-invest-meta" class="pill">Meta —</span>
+            <span id="bn-invest-google" class="pill">Google —</span>
+          </div>
+        </div>
+
+        <div class="card" id="card-cpl">
+          <div class="card-label">CPL Atual</div>
+          <div id="bn-cpl" class="card-value">—</div>
+          <div class="card-sub">
+            Limite: <span id="bn-cpl-max">—</span>
+          </div>
+        </div>
+
+        <div class="card" id="card-cplag">
+          <div class="card-label">CPLag Atual</div>
+          <div id="bn-cplag" class="card-value">—</div>
+          <div class="card-sub">
+            Limite: <span id="bn-cplag-max">—</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Leads</div>
+          <div id="bn-leads" class="card-value">—</div>
+          <div class="card-sub">Meta: <span id="bn-leads-meta">—</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Agendamentos</div>
+          <div id="bn-agendamentos" class="card-value">—</div>
+          <div class="card-sub">Meta: <span id="bn-ag-meta">—</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">AGQ</div>
+          <div id="bn-agq" class="card-value">—</div>
+          <div class="card-sub">Meta: <span id="bn-agq-meta">—</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- BLOCO 2 — PACE -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Pace até o Fim do Mês</h2>
+        <div class="pace-info">
+          <span id="pace-dias-corridos" class="pace-badge">— dias corridos</span>
+          <span id="pace-dias-restantes" class="pace-badge badge-warn">— dias restantes</span>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="pace-table">
+          <thead>
+            <tr>
+              <th>Métrica</th>
+              <th>Meta do Mês</th>
+              <th>Acumulado</th>
+              <th>% da Meta</th>
+              <th>Média / dia atual</th>
+              <th class="col-destaque">Média / dia necessária</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="pace-row-leads">
+              <td class="metric-name">Leads</td>
+              <td id="pr-leads-meta">—</td>
+              <td id="pr-leads-acum">—</td>
+              <td id="pr-leads-pct">—</td>
+              <td id="pr-leads-media-atual">—</td>
+              <td id="pr-leads-media-nec" class="col-destaque">—</td>
+              <td id="pr-leads-status">—</td>
+            </tr>
+            <tr id="pace-row-ag">
+              <td class="metric-name">Agendamentos</td>
+              <td id="pr-ag-meta">—</td>
+              <td id="pr-ag-acum">—</td>
+              <td id="pr-ag-pct">—</td>
+              <td id="pr-ag-media-atual">—</td>
+              <td id="pr-ag-media-nec" class="col-destaque">—</td>
+              <td id="pr-ag-status">—</td>
+            </tr>
+            <tr id="pace-row-agq">
+              <td class="metric-name">AGQ</td>
+              <td id="pr-agq-meta">—</td>
+              <td id="pr-agq-acum">—</td>
+              <td id="pr-agq-pct">—</td>
+              <td id="pr-agq-media-atual">—</td>
+              <td id="pr-agq-media-nec" class="col-destaque">—</td>
+              <td id="pr-agq-status">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- BLOCO 3 — GRÁFICO EVOLUÇÃO DIÁRIA -->
+    <section class="section">
+      <h2 class="section-title">Evolução Diária</h2>
+      <div class="chart-wrapper">
+        <canvas id="chart-evolucao"></canvas>
+      </div>
+    </section>
+
+    <!-- BLOCO 4 — INVESTIMENTO POR PLATAFORMA -->
+    <section class="section">
+      <h2 class="section-title">Investimento por Plataforma</h2>
+      <div class="plataforma-grid">
+
+        <div class="card card-plataforma">
+          <div class="plat-logo plat-meta">Meta Ads</div>
+          <div id="plat-meta-valor" class="card-value">—</div>
+          <div class="card-sub"><span id="plat-meta-pct">—</span> do total</div>
+          <div class="progress-bar-bg">
+            <div id="plat-meta-bar" class="progress-bar bar-meta" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="card card-plataforma">
+          <div class="plat-logo plat-google">Google Ads</div>
+          <div id="plat-google-valor" class="card-value">—</div>
+          <div class="card-sub"><span id="plat-google-pct">—</span> do total</div>
+          <div class="progress-bar-bg">
+            <div id="plat-google-bar" class="progress-bar bar-google" style="width:0%"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <span>Dashboard Evolução · Atualização automática a cada 30 minutos</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

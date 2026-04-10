@@ -1,0 +1,11 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from   = "/api/dados"
+  to     = "https://script.google.com/a/macros/yourh.com.br/s/AKfycbwNIl3WoIo3cAAHt6wexcMjs0EovvWZW4LvQYPXXd0QLp3Wt_-UlXFRmcqgfujCx6lV/exec"
+  status = 200
+  force  = true
+
+  [redirects.headers]
+    X-Custom-Proxy = "netlify"
