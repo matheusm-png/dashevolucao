@@ -7,14 +7,12 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="dark-mode">
     <div id="loading" class="overlay">
         <div class="spinner"></div>
-        <p>Sincronizando dados de Abril...</p>
+        <p>Processando inteligência de Abril...</p>
     </div>
 
     <header class="main-header">
@@ -53,7 +51,6 @@
                 <div class="kpi-info">
                     <span class="label">CPL Atual</span>
                     <h2 class="value">R$ 0,00</h2>
-                    <span class="sub-value">Meta: <span id="meta-cpl">R$ 0,00</span></span>
                 </div>
             </div>
             <div class="kpi-card glass" id="card-agendamentos">
@@ -75,102 +72,47 @@
                 <div class="kpi-info">
                     <span class="label">CPLag</span>
                     <h2 class="value">R$ 0,00</h2>
-                    <span class="sub-value">Meta: <span id="meta-cplag">R$ 0,00</span></span>
-                </div>
-            </div>
-            <div class="kpi-card glass secondary" id="card-tentativa">
-                <div class="kpi-info">
-                    <span class="label">Em Tentativa</span>
-                    <h2 class="value small">0</h2>
-                </div>
-            </div>
-            <div class="kpi-card glass danger" id="card-descartado">
-                <div class="kpi-info">
-                    <span class="label">Descartados</span>
-                    <h2 class="value small">0</h2>
                 </div>
             </div>
         </section>
 
-        <div class="grid-main">
-            <!-- BLOCO 2: PACE -->
+        <!-- BLOCO 2: TABELAS DE META ADS (OBJETIVO E CRIATIVO) -->
+        <div class="grid-side-by-side">
             <section class="panel glass">
-                <div class="panel-header">
-                    <h3><i data-lucide="zap"></i> Pace até o fim do mês</h3>
-                </div>
-                <div class="table-responsive">
-                    <table id="table-pace">
-                        <thead>
-                            <tr>
-                                <th>Métrica</th>
-                                <th>Meta</th>
-                                <th>Acumulado</th>
-                                <th>%</th>
-                                <th>Média/Dia</th>
-                                <th>Nec. p/ Dia</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pace-body">
-                            <!-- JS Inject -->
-                        </tbody>
-                    </table>
-                </div>
+                <div class="panel-header"><h3><i data-lucide="target"></i> Campanha Meta Ads Objetivo</h3></div>
+                <div class="table-responsive mini"><table id="table-meta-obj"><thead><tr><th>Objetivo</th><th>Gasto</th><th>Leads</th><th>Ag</th><th>CPL</th><th>CPLag</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
             </section>
-
-            <!-- BLOCO 3: EVOLUÇÃO DIÁRIA -->
-            <section class="panel glass chart-panel">
-                <div class="panel-header">
-                    <h3><i data-lucide="line-chart"></i> Evolução Diária</h3>
-                </div>
-                <div class="chart-container">
-                    <canvas id="evolutionChart"></canvas>
-                </div>
+            <section class="panel glass">
+                <div class="panel-header"><h3><i data-lucide="image"></i> Campanha Meta Ads Criativos</h3></div>
+                <div class="table-responsive mini"><table id="table-meta-cri"><thead><tr><th>Criativo</th><th>Gasto</th><th>Leads</th><th>Ag</th><th>CPL</th><th>CPLag</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
             </section>
         </div>
 
-        <div class="grid-secondary">
-            <!-- BLOCO 4: INVESTIMENTO POR PLATAFORMA -->
+        <!-- BLOCO 3: GOOGLE E ORGANICO -->
+        <div class="grid-side-by-side">
             <section class="panel glass">
-                <div class="panel-header">
-                    <h3><i data-lucide="pie-chart"></i> Investimento por Plataforma</h3>
-                </div>
-                <div class="platform-cards">
-                    <div class="platform-card" id="plat-meta">
-                        <div class="plat-header">
-                            <i data-lucide="facebook"></i>
-                            <span>Meta Ads</span>
-                        </div>
-                        <h4 class="plat-value">R$ 0,00</h4>
-                        <div class="progress-bar"><div class="fill" style="width: 0%"></div></div>
-                        <span class="plat-percent">0% do total</span>
-                    </div>
-                    <div class="platform-card" id="plat-google">
-                        <div class="plat-header">
-                            <i data-lucide="search"></i>
-                            <span>Google Ads</span>
-                        </div>
-                        <h4 class="plat-value">R$ 0,00</h4>
-                        <div class="progress-bar"><div class="fill" style="width: 0%"></div></div>
-                        <span class="plat-percent">0% do total</span>
-                    </div>
-                </div>
+                <div class="panel-header"><h3><i data-lucide="search"></i> Campanha Google Ads</h3></div>
+                <div class="table-responsive mini"><table id="table-google"><thead><tr><th>Campanha</th><th>Gasto</th><th>Leads</th><th>Ag</th><th>CPL</th><th>CPLag</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
             </section>
-
-            <!-- NOVO BLOCO: BREAKDOWN POR PÚBLICO/CAMPANHA -->
             <section class="panel glass">
-                <div class="panel-header">
-                    <h3><i data-lucide="layout-grid"></i> Breakdown Google & Meta</h3>
-                </div>
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="google">Google (Campanhas)</button>
-                    <button class="tab-btn" data-tab="meta">Meta (Públicos)</button>
-                </div>
-                <div id="breakdown-content" class="table-responsive mini-table">
-                    <!-- JS Inject -->
-                </div>
+                <div class="panel-header"><h3><i data-lucide="leaf"></i> Canal Orgânico</h3></div>
+                <div class="table-responsive mini"><table id="table-organico"><thead><tr><th>Canal</th><th>Leads</th><th>Ag</th><th>% Conv</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
             </section>
         </div>
+
+        <!-- BLOCO 4: INDICADORES SEMANAIS E EVOLUÇÃO -->
+        <section class="panel glass">
+            <div class="panel-header"><h3><i data-lucide="calendar-days"></i> Indicadores por Semana (S1-S5)</h3></div>
+            <div class="table-responsive mini"><table id="table-weekly">
+                <thead><tr><th>Indicador</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>Total</th></tr></thead>
+                <tbody id="weekly-body"></tbody>
+            </table></div>
+        </section>
+
+        <section class="panel glass chart-panel large">
+            <div class="panel-header"><h3><i data-lucide="line-chart"></i> Evolução Diária (Abril 2026)</h3></div>
+            <div class="chart-container"><canvas id="evolutionChart"></canvas></div>
+        </section>
 
     </main>
 

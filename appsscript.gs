@@ -1,253 +1,226 @@
 /**
  * DASHBOARD DE PERFORMANCE - ABRIL 2026
- * Backend Google Apps Script
+ * Backend Google Apps Script - V7 (Filtragem Avançada por Objetivo/Criativo)
  */
 
 const SPREADSHEET_ID = '1QMS8QfKbEvVwdIRI9zZlF_8ilO-Ap-Lmske_PZ5_m-8';
 const ANO_ALVO = 2026;
-const MES_ALVO = 3; // Abril (0-indexed no JS, mas vamos usar Date.getMonth())
+const MES_ALVO = 3;
 
 function doGet() {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    
     const metas = getMetas(ss);
-    const dadosMídia = getDadosMidia(ss);
-    const dadosLeads = getDadosLeads(ss);
+    const midia = getDadosMidia(ss);
+    const leads = filterByMonth(ss.getSheetByName('LEADS GERAIS')); 
+    const agendamentos = filterByMonth(ss.getSheetByName('AGENDAMENTO'));
+    const agqs = filterByMonth(ss.getSheetByName('AGQ'));
     
-    const response = processarDashboard(metas, dadosMídia, dadosLeads);
-    
-    return ContentService.createTextOutput(JSON.stringify(response))
-      .setMimeType(ContentService.MimeType.JSON);
-      
+    const response = processarDashboard(metas, midia, leads, agendamentos, agqs);
+    return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({ error: e.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ error: e.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-function getMetas(ss) {
-  const sheet = ss.getSheetByName('METAS');
-  const data = sheet.getDataRange().getValues();
-  // Assume estrutura: [Nome, Valor]
-  const metas = {};
-  data.forEach(row => {
-    const nome = row[0].toString().toLowerCase();
-    const valor = row[1];
-    if (nome.includes('leads')) metas.leads = valor;
-    if (nome.includes('agendamentos')) metas.agendamentos = valor;
-    if (nome.includes('agq')) metas.agq = valor;
-    if (nome.includes('cpl max')) metas.cpl_max = valor;
-    if (nome.includes('cplag max')) metas.cplag_max = valor;
-  });
-  return metas;
+/** MAPEAMENTO DE CRIATIVO (Baseado no seu Excel) */
+function classificarCriativo(nome) {
+  const n = (nome || "").toString().toLowerCase();
+  if (n.includes("uc motion") || n.includes("ucmotion")) return "UC motion";
+  if (n.includes("let") || n.includes("t&d")) return "Let T&D";
+  if (n.includes("jordana")) return "Jordana";
+  if (n.includes("anna")) return "Anna 2";
+  if (n.includes("prova social") || n.includes("depoimento")) return "Prova Social";
+  return "Outros";
+}
+
+/** MAPEAMENTO DE OBJETIVO (Público Meta) */
+function classificarObjetivo(publico) {
+  const p = (publico || "").toString().toLowerCase();
+  if (p.includes("intfrio") || p.includes("inteiro")) return "Int Frio";
+  if (p.includes("lal") || p.includes("semelhante")) return "Semelhante";
+  if (p.includes("rmkt")) return "RMKT";
+  return "Outros";
+}
+
+/** MAPEAMENTO DE GOOGLE */
+function classificarGoogle(nome) {
+  const n = (nome || "").toString().toLowerCase();
+  if (n.includes("performa") || n.includes("desempenho") || n.includes("aval")) return "Avaliacao de desempenho";
+  if (n.includes("educa") || n.includes("jordana")) return "YouEduca";
+  if (n.includes("rh") || n.includes("sistema")) return "YouRH";
+  return "Outros";
 }
 
 function getDadosMidia(ss) {
   const metaSheet = ss.getSheetByName('META ADS');
   const googleSheet = ss.getSheetByName('GOOGLE ADS');
-  
-  const metaData = metaSheet.getDataRange().getValues();
-  const googleData = googleSheet.getDataRange().getValues();
-  
   const registros = { meta: [], google: [] };
   
-  // Processar Meta Ads
-  // Colunas: Ad Name (0), Ad Set Name (1), Impressions (2), Results (leads) (3), Cost per Result (4), Amount Spent (5), ..., Day (10)
-  const metaHeaders = metaData[0];
-  for (let i = 1; i < metaData.length; i++) {
-    const row = metaData[i];
-    const dataRow = new Date(row[10]);
-    if (dataRow.getFullYear() === ANO_ALVO && dataRow.getMonth() === MES_ALVO) {
-      registros.meta.push({
-        campanha: row[0],
-        leads: Number(row[3]) || 0,
-        investimento: Number(row[5]) || 0,
-        data: Utilities.formatDate(dataRow, "GMT-3", "yyyy-MM-dd")
-      });
+  if (metaSheet) {
+    const data = metaSheet.getDataRange().getValues();
+    const headers = data[0];
+    const idxDay = headers.indexOf('Day');
+    const idxName = headers.indexOf('Ad Name');
+    const idxCost = headers.indexOf('Amount Spent');
+    for (let i = 1; i < data.length; i++) {
+        const d = parseDate(data[i][idxDay]);
+        if (d && d.getFullYear() === ANO_ALVO && d.getMonth() === MES_ALVO) {
+          registros.meta.push({ campanha: data[i][idxName].toString(), investimento: Number(data[i][idxCost]) || 0, data: d });
+        }
     }
   }
   
-  // Processar Google Ads
-  // Colunas: Data (0), Campanha (1), ..., Cliques (6), Custo (7), Conversões (8)
-  for (let i = 1; i < googleData.length; i++) {
-    const row = googleData[i];
-    const dataRow = new Date(row[0]);
-    if (dataRow.getFullYear() === ANO_ALVO && dataRow.getMonth() === MES_ALVO) {
-      registros.google.push({
-        campanha: row[1],
-        investimento: Number(row[7]) || 0,
-        conversoes: Number(row[8]) || 0,
-        data: Utilities.formatDate(dataRow, "GMT-3", "yyyy-MM-dd")
-      });
+  if (googleSheet) {
+    const data = googleSheet.getDataRange().getValues();
+    const headers = data[0];
+    const idxData = headers.indexOf('Data');
+    const idxCamp = headers.indexOf('Campanha');
+    const idxCost = headers.indexOf('Custo (R$)');
+    for (let i = 1; i < data.length; i++) {
+        const d = parseDate(data[i][idxData]);
+        if (d && d.getFullYear() === ANO_ALVO && d.getMonth() === MES_ALVO) {
+          registros.google.push({ campanha: data[i][idxCamp].toString(), investimento: Number(data[i][idxCost]) || 0, data: d });
+        }
     }
   }
-  
   return registros;
 }
 
-function getDadosLeads(ss) {
-  const sheet = ss.getSheetByName('LEADS GERAIS');
+function filterByMonth(sheet) {
+  if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
-  
-  const colIndex = {};
+  const idx = { mes: [], dataEx: -1, camp: -1, orig: -1, pub: -1, stat: -1, tipo: -1, dataP: -1 };
   headers.forEach((h, i) => {
-    const header = h.toString().toLowerCase().trim();
-    if (header === 'data') colIndex.data = i;
-    if (header === 'status') colIndex.status = i;
-    if (header === 'origem') colIndex.origem = i;
-    if (header === 'campanha') colIndex.campanha = i;
-    if (header === 'público' || header === 'publico') colIndex.publico = i;
-    if (header === 'tipo') colIndex.tipo = i;
+    const head = h ? h.toString().toLowerCase().trim() : "";
+    if (head === 'mês' || head === 'mes') idx.mes.push(i);
+    if (head === 'data exact' || head === 'data_exact') idx.dataEx = i;
+    if (head === 'campanha') idx.camp = i;
+    if (head === 'origem') idx.orig = i;
+    if (head === 'público' || head === 'publico') idx.pub = i;
+    if (head === 'status') idx.stat = i;
+    if (head === 'tipo') idx.tipo = i;
+    if (head === 'data') idx.dataP = i;
   });
-  
-  const registros = [];
+
+  const res = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (!row[colIndex.data]) continue;
-    
-    const dataRow = new Date(row[colIndex.data]);
-    
-    if (dataRow && !isNaN(dataRow.getTime()) && dataRow.getFullYear() === ANO_ALVO && dataRow.getMonth() === MES_ALVO) {
-      const status = (row[colIndex.status] || "").toString().toLowerCase().trim();
-      registros.push({
-        data: Utilities.formatDate(dataRow, "GMT-3", "yyyy-MM-dd"),
-        status: status,
-        origem: (row[colIndex.origem] || "").toString().toLowerCase().trim(),
-        campanha: row[colIndex.campanha] || "",
-        publico: row[colIndex.publico] || "Não Identificado",
-        tipo: row[colIndex.tipo] || "",
-        isLead: true,
-        isAgendamento: status === "agendamento" || status === "agendamento q",
-        isAGQ: status === "agendamento q",
-        isTentativa: status === "em tentativa",
-        isDescartado: status === "descartado"
+    let ehAbril = false;
+    idx.mes.forEach(mIdx => { if ((row[mIdx] || "").toString().toLowerCase().includes("abril 2026")) ehAbril = true; });
+    if (ehAbril) {
+      const d = parseDate(row[idx.dataEx] || row[idx.dataP]);
+      res.push({
+        data: d,
+        dataStr: d ? Utilities.formatDate(d, "GMT-3", "yyyy-MM-dd") : "2026-04-01",
+        origem: (row[idx.orig] || "").toString().toLowerCase().trim(),
+        tipo: (row[idx.tipo] || "").toString().toLowerCase().trim(),
+        campanha: (row[idx.camp] || "").toString(),
+        publico: (row[idx.pub] || "").toString(),
+        status: (row[idx.stat] || "").toString().toLowerCase().trim()
       });
     }
   }
-  return registros;
+  return res;
 }
 
-function processarDashboard(metas, midia, leads) {
-  const resumo_mes = {
-    leads: 0,
-    agendamentos: 0,
-    agq: 0,
-    tentativa: 0,
-    descartado: 0,
-    investimento_meta: 0,
-    investimento_google: 0,
-    total_investimento: 0
-  };
-  
+function processarDashboard(metas, midia, leads, agendamentos, agqs) {
+  const resumo = { leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, total_inv: 0 };
   const serie_diaria = {};
-  const breakdown_google = {};
-  const breakdown_meta = {};
+  const serie_semanal = { "S1": criarObjSemana("S1"), "S2": criarObjSemana("S2"), "S3": criarObjSemana("S3"), "S4": criarObjSemana("S4"), "S5": criarObjSemana("S5") };
   
-  // Totalizar Investimento
-  midia.meta.forEach(m => {
-    resumo_mes.investimento_meta += m.investimento;
-    if (!serie_diaria[m.data]) serie_diaria[m.data] = criarObjetoDia(m.data);
-    serie_diaria[m.data].investimento += m.investimento;
-  });
-  
+  const b_meta_obj = { "Int Frio": objB("Int Frio"), "Semelhante": objB("Semelhante"), "RMKT": objB("RMKT"), "Outros": objB("Outros") };
+  const b_meta_cri = { "UC motion": objB("UC motion"), "Let T&D": objB("Let T&D"), "Jordana": objB("Jordana"), "Anna 2": objB("Anna 2"), "Prova Social": objB("Prova Social"), "Outros": objB("Outros") };
+  const b_google = { "Avaliacao de desempenho": objB("Avaliacao de desempenho"), "YouEduca": objB("YouEduca"), "YouRH": objB("YouRH"), "Outros": objB("Outros") };
+  const b_organico = { "Desconhecido": objB("Desconhecido"), "Google": objB("Google"), "Instagram": objB("Instagram"), "Outros": objB("Outros") };
+
+  // Investimento
   midia.google.forEach(g => {
-    resumo_mes.investimento_google += g.investimento;
-    if (!serie_diaria[g.data]) serie_diaria[g.data] = criarObjetoDia(g.data);
-    serie_diaria[g.data].investimento += g.investimento;
-    
-    // Agrupamento Google
-    let grupo = "Outros";
-    const nome = g.campanha.toLowerCase();
-    if (nome.includes("avaliacaode_desempenho") || nome.includes("youperforma")) grupo = "YOUperforma";
-    else if (nome.includes("youeduca")) grupo = "YOUeduca";
-    else if (nome.includes("yourh") || nome.includes("sistema_de_rh")) grupo = "YOUrh";
-    
-    if (!breakdown_google[grupo]) breakdown_google[grupo] = criarObjetoBreakdown(grupo);
-    breakdown_google[grupo].investimento += g.investimento;
+    const p = classificarGoogle(g.campanha);
+    b_google[p].investimento += g.investimento;
+    resumo.total_inv += g.investimento;
+    const s = getSemana(g.data); serie_semanal[s].investimento += g.investimento;
+    const ds = Utilities.formatDate(g.data, "GMT-3", "yyyy-MM-dd");
+    if (!serie_diaria[ds]) serie_diaria[ds] = criarDia(ds); serie_diaria[ds].investimento += g.investimento;
   });
-  
-  resumo_mes.total_investimento = resumo_mes.investimento_meta + resumo_mes.investimento_google;
-  
-  // Processar Leads
+  midia.meta.forEach(m => {
+    const obj = classificarObjetivo(m.campanha); b_meta_obj[obj].investimento += m.investimento;
+    const cri = classificarCriativo(m.campanha); b_meta_cri[cri].investimento += m.investimento;
+    resumo.total_inv += m.investimento;
+    const s = getSemana(m.data); serie_semanal[s].investimento += m.investimento;
+    const ds = Utilities.formatDate(m.data, "GMT-3", "yyyy-MM-dd");
+    if (!serie_diaria[ds]) serie_diaria[ds] = criarDia(ds); serie_diaria[ds].investimento += m.investimento;
+  });
+
+  // Leads
   leads.forEach(l => {
-    resumo_mes.leads++;
-    if (l.isAgendamento) resumo_mes.agendamentos++;
-    if (l.isAGQ) resumo_mes.agq++;
-    if (l.isTentativa) resumo_mes.tentativa++;
-    if (l.isDescartado) resumo_mes.descartado++;
-    
-    // Série Diária
-    if (!serie_diaria[l.data]) serie_diaria[l.data] = criarObjetoDia(l.data);
-    serie_diaria[l.data].leads++;
-    if (l.isAgendamento) serie_diaria[l.data].agendamentos++;
-    if (l.isAGQ) serie_diaria[l.data].agq++;
-    if (l.isTentativa) serie_diaria[l.data].tentativa++;
-    if (l.isDescartado) serie_diaria[l.data].descartado++;
-    
-    // Breakdown
-    if (l.origem.includes("google")) {
-      let grupo = "Outros";
-      const nomeCamp = (l.campanha || "").toLowerCase();
-      if (nomeCamp.includes("avaliacao") || nomeCamp.includes("performa")) grupo = "YOUperforma";
-      else if (nomeCamp.includes("educa")) grupo = "YOUeduca";
-      else if (nomeCamp.includes("rh")) grupo = "YOUrh";
-      
-      if (!breakdown_google[grupo]) breakdown_google[grupo] = criarObjetoBreakdown(grupo);
-      breakdown_google[grupo].leads++;
-      if (l.isAgendamento) breakdown_google[grupo].agendamentos++;
-      if (l.isAGQ) breakdown_google[grupo].agq++;
-    } else {
-      // Meta (ou outros) por Público
-      const publico = l.publico || "Desconhecido";
-      if (!breakdown_meta[publico]) breakdown_meta[publico] = criarObjetoBreakdown(publico);
-      breakdown_meta[publico].leads++;
-      if (l.isAgendamento) breakdown_meta[publico].agendamentos++;
-      if (l.isAGQ) breakdown_meta[publico].agq++;
-      
-      // Atribuir investimento proporcional ou direto se possível (simplificado aqui por público)
-      // Nota: Atribuição de investimento Meta por público em LEADS GERAIS exige match com META ADS.
-      // Aqui somamos o investimento total do Meta no breakdown global do Meta se necessário.
+    const s = getSemana(l.data);
+    const ds = l.dataStr;
+    resumo.leads++; if (l.status === "em tentativa") resumo.tentativa++; if (l.status === "descartado") resumo.descartado++;
+    serie_semanal[s].leads++; if (l.status === "em tentativa") serie_semanal[s].tentativa++; if (l.status === "descartado") serie_semanal[s].descartado++;
+    if (!serie_diaria[ds]) serie_diaria[ds] = criarDia(ds); serie_diaria[ds].leads++;
+
+    if (l.origem === "pago") {
+      if (l.tipo.includes("google")) {
+        const p = classificarGoogle(l.campanha); b_google[p].leads++; if (l.status === "em tentativa") b_google[p].tentativa++; if (l.status === "descartado") b_google[p].descartado++;
+      } else {
+        const obj = classificarObjetivo(l.publico); b_meta_obj[obj].leads++; if (l.status === "em tentativa") b_meta_obj[obj].tentativa++; if (l.status === "descartado") b_meta_obj[obj].descartado++;
+        const cri = classificarCriativo(l.campanha); b_meta_cri[cri].leads++; if (l.status === "em tentativa") b_meta_cri[cri].tentativa++; if (l.status === "descartado") b_meta_cri[cri].descartado++;
+      }
+    } else if (l.origem === "organico") {
+      const org = classificarOrganico(l.campanha); b_organico[org].leads++; if (l.status === "em tentativa") b_organico[org].tentativa++; if (l.status === "descartado") b_organico[org].descartado++;
     }
   });
 
-  // Cálculos de Pace
-  const hoje = new Date();
-  const diaAtual = hoje.getFullYear() === ANO_ALVO && hoje.getMonth() === MES_ALVO ? hoje.getDate() : 30; // Se não for abril, assume fim do mês para teste
-  const totalDiasMes = new Date(ANO_ALVO, MES_ALVO + 1, 0).getDate();
-  const diasRestantes = totalDiasMes - diaAtual;
-  
-  const pace = {
-    dias_corridos: diaAtual,
-    dias_restantes: diasRestantes,
-    leads_necessarios_por_dia: Math.max(0, (metas.leads - resumo_mes.leads) / (diasRestantes || 1)),
-    agendamentos_necessarios_por_dia: Math.max(0, (metas.agendamentos - resumo_mes.agendamentos) / (diasRestantes || 1)),
-    agq_necessarios_por_dia: Math.max(0, (metas.agq - resumo_mes.agq) / (diasRestantes || 1)),
-    leads_media_atual_por_dia: resumo_mes.leads / diaAtual,
-    agendamentos_media_atual_por_dia: resumo_mes.agendamentos / diaAtual,
-    agq_media_atual_por_dia: resumo_mes.agq / diaAtual
-  };
+  // Agendamentos
+  agendamentos.forEach(a => {
+    const s = getSemana(a.data);
+    resumo.agendamentos++; serie_semanal[s].agendamentos++;
+    if (!serie_diaria[a.dataStr]) serie_diaria[a.dataStr] = criarDia(a.dataStr); serie_diaria[a.dataStr].agendamentos++;
+    if (a.origem === "pago") {
+      if (a.tipo.includes("google")) { b_google[classificarGoogle(a.campanha)].agendamentos++; } 
+      else { b_meta_obj[classificarObjetivo(a.publico)].agendamentos++; b_meta_cri[classificarCriativo(a.campanha)].agendamentos++; }
+    } else if (a.origem === "organico") { b_organico[classificarOrganico(a.campanha)].agendamentos++; }
+  });
+
+  // AGQs
+  agqs.forEach(q => {
+    const s = getSemana(q.data);
+    resumo.agq++; serie_semanal[s].agq++;
+    if (!serie_diaria[q.dataStr]) serie_diaria[q.dataStr] = criarDia(q.dataStr); serie_diaria[q.dataStr].agq++;
+    if (q.origem === "pago") {
+      if (q.tipo.includes("google")) { b_google[classificarGoogle(q.campanha)].agq++; } 
+      else { b_meta_obj[classificarObjetivo(q.publico)].agq++; b_meta_cri[classificarCriativo(q.campanha)].agq++; }
+    } else if (q.origem === "organico") { b_organico[classificarOrganico(q.campanha)].agq++; }
+  });
 
   return {
     metas,
-    resumo_mes: {
-      ...resumo_mes,
-      cpl: resumo_mes.leads > 0 ? resumo_mes.total_investimento / resumo_mes.leads : 0,
-      cplag: resumo_mes.agendamentos > 0 ? resumo_mes.total_investimento / resumo_mes.agendamentos : 0
-    },
-    pace,
+    resumo_mes: { ...resumo, cpl: resumo.leads > 0 ? (resumo.total_inv / resumo.leads) : 0, cplag: resumo.agendamentos > 0 ? (resumo.total_inv / resumo.agendamentos) : 0 },
+    serie_semanal: Object.values(serie_semanal),
+    breakdown_meta_obj: Object.values(b_meta_obj),
+    breakdown_meta_cri: Object.values(b_meta_cri),
+    breakdown_google: Object.values(b_google),
+    breakdown_organico: Object.values(b_organico),
     serie_diaria: Object.values(serie_diaria).sort((a,b) => a.data.localeCompare(b.data)),
-    breakdown_google: Object.values(breakdown_google),
-    breakdown_meta: Object.values(breakdown_meta),
     updated_at: new Date().toISOString()
   };
 }
 
-function criarObjetoDia(data) {
-  return { data, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, investimento: 0 };
+function getSemana(d) {
+  if (!d) return "S1";
+  const dia = d.getDate();
+  if (dia <= 7) return "S1"; if (dia <= 14) return "S2"; if (dia <= 21) return "S3"; if (dia <= 28) return "S4"; return "S5";
 }
-
-function criarObjetoBreakdown(nome) {
-  return { nome, leads: 0, agendamentos: 0, agq: 0, investimento: 0 };
+function parseDate(v) { if (v instanceof Date) return v; if (!v) return null; const p = v.toString().split('/'); if (p.length >= 2) return new Date(p[2] || 2026, p[1]-1, p[0]); return new Date(v); }
+function classificarOrganico(n) { const c = (n || "").toString().toLowerCase(); if (c.includes("google")) return "Google"; if (c.includes("instagram")) return "Instagram"; return "Desconhecido"; }
+function criarObjSemana(s) { return { nome: s, investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0 }; }
+function objB(n) { return { nome: n, investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0 }; }
+function criarDia(d) { return { data: d, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, investimento: 0 }; }
+function getMetas(ss) {
+  const s = ss.getSheetByName('METAS'); if(!s) return {};
+  const d = s.getDataRange().getValues(); const m = {};
+  d.forEach(r => { const n = r[0].toString().toLowerCase(); if (n.includes('leads')) m.leads = r[1]; if (n.includes('agendamentos')) m.agendamentos = r[1]; if (n.includes('agq')) m.agq = r[1]; });
+  return m;
 }
