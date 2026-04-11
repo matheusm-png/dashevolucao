@@ -3,115 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Performance Dashboard | Abril 2026</title>
+    <title>Evolução Dashboard | Intelligence 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
-<body class="dark-mode">
+<body class="premium-dark">
+
     <div id="loading" class="overlay">
-        <div class="spinner"></div>
-        <p>Processando inteligência de Abril...</p>
+        <div class="loader-box">
+            <div class="glow-spinner"></div>
+            <p>Renderizando Inteligência de Dados...</p>
+        </div>
     </div>
 
-    <header class="main-header">
-        <div class="header-content">
-            <div class="logo">
-                <i data-lucide="bar-chart-3" class="logo-icon"></i>
-                <h1>Dashboard <span>Performance</span></h1>
-            </div>
-            <div class="last-update">
-                <span id="update-time">Sincronizando...</span>
-                <button id="refresh-btn"><i data-lucide="refresh-cw"></i></button>
-            </div>
+    <!-- TOPBAR FIXA -->
+    <header class="topbar">
+        <div class="topbar-brand">
+            <div class="logo-icon-box"><i data-lucide="zap"></i></div>
+            <span class="brand-name">Evolução</span>
+        </div>
+        <div class="topbar-kpis">
+            <div class="tkpi"><span class="tk-label">Investimento</span><span class="tk-value" id="top-inv">—</span></div>
+            <div class="tkpi"><span class="tk-label">Leads</span><span class="tk-value" id="top-leads">—</span></div>
+            <div class="tkpi success"><span class="tk-label">Agendamentos</span><span class="tk-value" id="top-ag">—</span></div>
+            <div class="tkpi success"><span class="tk-label">AGQ</span><span class="tk-value" id="top-agq">—</span></div>
+            <div class="tkpi danger"><span class="tk-label">CPL</span><span class="tk-value" id="top-cpl">—</span></div>
+            <div class="tkpi danger"><span class="tk-label">CPLag</span><span class="tk-value" id="top-cplag">—</span></div>
+        </div>
+        <div class="topbar-actions">
+            <span class="update-label">Sync: <span id="update-time">--:--</span></span>
+            <button id="refresh-btn" class="glow-btn"><i data-lucide="refresh-cw"></i></button>
         </div>
     </header>
 
-    <main class="dashboard-container">
-        
-        <!-- BLOCO 1: BIG NUMBERS -->
-        <section class="kpi-grid">
-            <div class="kpi-card glass" id="card-investimento">
-                <div class="kpi-icon"><i data-lucide="dollar-sign"></i></div>
-                <div class="kpi-info">
-                    <span class="label">Investimento Total</span>
-                    <h2 class="value">R$ 0,00</h2>
+    <!-- PÁGINA INTEIRA SCROLLÁVEL -->
+    <main class="page">
+
+        <!-- SEÇÃO 1: FUNIL + SAÚDE -->
+        <section class="page-section">
+            <h2 class="section-heading"><i data-lucide="filter"></i> Funil & Saúde</h2>
+            <div class="row-3">
+                <!-- Funnel -->
+                <div class="panel glass col-2">
+                    <div class="panel-header"><h3>Funil de Conversão</h3></div>
+                    <div class="funnel-container">
+                        <div class="funnel-stage" id="stage-leads">
+                            <div class="stage-info"><h4>Leads</h4><p>0</p></div>
+                            <div class="stage-bar"><div class="fill"></div></div>
+                        </div>
+                        <div class="funnel-stage" id="stage-ag">
+                            <div class="stage-info"><h4>Agendamentos</h4><p>0</p></div>
+                            <div class="stage-bar"><div class="fill fill-green"></div></div>
+                            <span class="conversion-tag">Conv: 0%</span>
+                        </div>
+                        <div class="funnel-stage" id="stage-agq">
+                            <div class="stage-info"><h4>Qualificados (AGQ)</h4><p>0</p></div>
+                            <div class="stage-bar"><div class="fill fill-amber"></div></div>
+                            <span class="conversion-tag">Quali: 0%</span>
+                        </div>
+                        <div class="funnel-stage" id="stage-tent">
+                            <div class="stage-info"><h4>Em Tentativa</h4><p>0</p></div>
+                            <div class="stage-bar"><div class="fill fill-yellow"></div></div>
+                        </div>
+                        <div class="funnel-stage" id="stage-desc">
+                            <div class="stage-info"><h4>Descartados</h4><p>0</p></div>
+                            <div class="stage-bar"><div class="fill fill-red"></div></div>
+                            <span class="conversion-tag" id="desc-taxa">Taxa: 0%</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="kpi-card glass" id="card-leads">
-                <div class="kpi-icon"><i data-lucide="users"></i></div>
-                <div class="kpi-info">
-                    <span class="label">Total de Leads</span>
-                    <h2 class="value">0</h2>
-                </div>
-            </div>
-            <div class="kpi-card glass" id="card-cpl">
-                <div class="kpi-icon"><i data-lucide="trending-up"></i></div>
-                <div class="kpi-info">
-                    <span class="label">CPL Atual</span>
-                    <h2 class="value">R$ 0,00</h2>
-                </div>
-            </div>
-            <div class="kpi-card glass" id="card-agendamentos">
-                <div class="kpi-icon"><i data-lucide="calendar"></i></div>
-                <div class="kpi-info">
-                    <span class="label">Agendamentos</span>
-                    <h2 class="value">0</h2>
-                </div>
-            </div>
-            <div class="kpi-card glass" id="card-agq">
-                <div class="kpi-icon"><i data-lucide="user-check"></i></div>
-                <div class="kpi-info">
-                    <span class="label">AGQ</span>
-                    <h2 class="value">0</h2>
-                </div>
-            </div>
-            <div class="kpi-card glass" id="card-cplag">
-                <div class="kpi-icon"><i data-lucide="target"></i></div>
-                <div class="kpi-info">
-                    <span class="label">CPLag</span>
-                    <h2 class="value">R$ 0,00</h2>
+                <!-- Pace até o fim do mês -->
+                <div class="panel glass col-1">
+                    <div class="panel-header"><h3><i data-lucide="rocket"></i> Pace até o Fim do Mês</h3></div>
+
+                    <div class="pace-dias-info" id="pace-dias-info">
+                        <span class="pdi pdi-corrido"><i data-lucide="calendar-days"></i> — dias corridos</span>
+                        <span class="pdi pdi-util"><i data-lucide="briefcase"></i> — dias úteis</span>
+                    </div>
+
+                    <!-- Leads (todo dia) -->
+                    <div class="pace-row">
+                        <div class="pr-header">
+                            <span class="pr-label">Leads <em>· todo dia</em></span>
+                            <span class="pr-count" id="pr-leads-count">—</span>
+                        </div>
+                        <div class="pr-track"><div class="pr-fill pr-fill-indigo" id="pr-leads-bar"></div></div>
+                        <div class="pr-footer">
+                            <span class="pr-faltam" id="pr-leads-faltam">Faltam —</span>
+                        </div>
+                        <div class="pr-media-row">
+                            <span class="pr-media-atual" id="pr-leads-media">Atual —/dia</span>
+                            <span class="pr-pace" id="pr-leads-pace">Precisa —/dia</span>
+                        </div>
+                    </div>
+
+                    <!-- Agendamentos (dia útil) -->
+                    <div class="pace-row">
+                        <div class="pr-header">
+                            <span class="pr-label">Agendamentos <em>· dia útil</em></span>
+                            <span class="pr-count" id="pr-ag-count">—</span>
+                        </div>
+                        <div class="pr-track"><div class="pr-fill pr-fill-green" id="pr-ag-bar"></div></div>
+                        <div class="pr-footer">
+                            <span class="pr-faltam" id="pr-ag-faltam">Faltam —</span>
+                        </div>
+                        <div class="pr-media-row">
+                            <span class="pr-media-atual" id="pr-ag-media">Atual —/dia</span>
+                            <span class="pr-pace" id="pr-ag-pace">Precisa —/dia</span>
+                        </div>
+                    </div>
+
+                    <!-- AGQ (dia útil) -->
+                    <div class="pace-row">
+                        <div class="pr-header">
+                            <span class="pr-label">AGQ <em>· dia útil</em></span>
+                            <span class="pr-count" id="pr-agq-count">—</span>
+                        </div>
+                        <div class="pr-track"><div class="pr-fill pr-fill-amber" id="pr-agq-bar"></div></div>
+                        <div class="pr-footer">
+                            <span class="pr-faltam" id="pr-agq-faltam">Faltam —</span>
+                        </div>
+                        <div class="pr-media-row">
+                            <span class="pr-media-atual" id="pr-agq-media">Atual —/dia</span>
+                            <span class="pr-pace" id="pr-agq-pace">Precisa —/dia</span>
+                        </div>
+                    </div>
+
+                    <div class="pace-feriados-note" id="pace-feriados-note"></div>
                 </div>
             </div>
         </section>
 
-        <!-- BLOCO 2: TABELAS DE META ADS (OBJETIVO E CRIATIVO) -->
-        <div class="grid-side-by-side">
-            <section class="panel glass">
-                <div class="panel-header"><h3><i data-lucide="target"></i> Campanha Meta Ads Objetivo</h3></div>
-                <div class="table-responsive mini"><table id="table-meta-obj"><thead><tr><th>Objetivo</th><th>Gasto</th><th>Leads</th><th>Ag</th><th>CPL</th><th>CPLag</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
-            </section>
-            <section class="panel glass">
-                <div class="panel-header"><h3><i data-lucide="image"></i> Campanha Meta Ads Criativos</h3></div>
-                <div class="table-responsive mini"><table id="table-meta-cri"><thead><tr><th>Criativo</th><th>Gasto</th><th>Leads</th><th>Ag</th><th>CPL</th><th>CPLag</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
-            </section>
-        </div>
-
-        <!-- BLOCO 3: GOOGLE E ORGANICO -->
-        <div class="grid-side-by-side">
-            <section class="panel glass">
-                <div class="panel-header"><h3><i data-lucide="search"></i> Campanha Google Ads</h3></div>
-                <div class="table-responsive mini"><table id="table-google"><thead><tr><th>Campanha</th><th>Gasto</th><th>Leads</th><th>Ag</th><th>CPL</th><th>CPLag</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
-            </section>
-            <section class="panel glass">
-                <div class="panel-header"><h3><i data-lucide="leaf"></i> Canal Orgânico</h3></div>
-                <div class="table-responsive mini"><table id="table-organico"><thead><tr><th>Canal</th><th>Leads</th><th>Ag</th><th>% Conv</th><th>Tentativa</th><th>Descarte</th></tr></thead><tbody></tbody></table></div>
-            </section>
-        </div>
-
-        <!-- BLOCO 4: INDICADORES SEMANAIS E EVOLUÇÃO -->
-        <section class="panel glass">
-            <div class="panel-header"><h3><i data-lucide="calendar-days"></i> Indicadores por Semana (S1-S5)</h3></div>
-            <div class="table-responsive mini"><table id="table-weekly">
-                <thead><tr><th>Indicador</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>Total</th></tr></thead>
-                <tbody id="weekly-body"></tbody>
-            </table></div>
+        <!-- SEÇÃO 2: EVOLUÇÃO DIÁRIA -->
+        <section class="page-section">
+            <h2 class="section-heading"><i data-lucide="line-chart"></i> Evolução Diária</h2>
+            <div class="panel glass">
+                <div class="chart-box-large"><canvas id="evolutionChart"></canvas></div>
+            </div>
         </section>
 
-        <section class="panel glass chart-panel large">
-            <div class="panel-header"><h3><i data-lucide="line-chart"></i> Evolução Diária (Abril 2026)</h3></div>
-            <div class="chart-container"><canvas id="evolutionChart"></canvas></div>
+        <!-- SEÇÃO 3: META ADS -->
+        <section class="page-section">
+            <h2 class="section-heading"><i data-lucide="facebook"></i> Meta Ads</h2>
+            <div class="row-2">
+                <div class="panel glass">
+                    <div class="panel-header"><h3>Por Objetivo (Conjunto de Anúncios)</h3></div>
+                    <div class="chart-box"><canvas id="objDonutChart"></canvas></div>
+                </div>
+                <div class="panel glass">
+                    <div class="panel-header"><h3>Por Criativo — Leads, Ag, AGQ</h3></div>
+                    <div class="chart-box"><canvas id="criBarChart"></canvas></div>
+                </div>
+            </div>
+            <!-- Tabela de objetivos -->
+            <div class="panel glass">
+                <div class="panel-header"><h3>Detalhamento por Objetivo</h3></div>
+                <div class="table-wrap">
+                    <table class="dash-table" id="table-meta-obj">
+                        <thead><tr>
+                            <th>Objetivo</th>
+                            <th>Investimento</th>
+                            <th>Leads</th>
+                            <th>Agendamentos</th>
+                            <th>AGQ</th>
+                            <th>Em Tentativa</th>
+                            <th>Descartados</th>
+                            <th>CPL</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 4: GOOGLE ADS -->
+        <section class="page-section">
+            <h2 class="section-heading"><i data-lucide="search"></i> Google Ads</h2>
+            <div class="row-2">
+                <div class="panel glass">
+                    <div class="panel-header"><h3>Investimento por Produto</h3></div>
+                    <div class="chart-box"><canvas id="googleDonutChart"></canvas></div>
+                </div>
+                <div class="panel glass">
+                    <div class="panel-header"><h3>Leads por Produto</h3></div>
+                    <div class="chart-box"><canvas id="googleLeadsChart"></canvas></div>
+                </div>
+            </div>
+            <!-- Tabela Google -->
+            <div class="panel glass">
+                <div class="panel-header"><h3>Detalhamento por Produto</h3></div>
+                <div class="table-wrap">
+                    <table class="dash-table" id="table-google">
+                        <thead><tr>
+                            <th>Produto</th>
+                            <th>Investimento</th>
+                            <th>Leads</th>
+                            <th>Agendamentos</th>
+                            <th>AGQ</th>
+                            <th>Em Tentativa</th>
+                            <th>Descartados</th>
+                            <th>CPL</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 5: SEMANAL -->
+        <section class="page-section">
+            <h2 class="section-heading"><i data-lucide="calendar"></i> Desempenho Semanal</h2>
+            <div class="panel glass">
+                <div class="weekly-heatmap" id="weekly-heatmap-container"></div>
+            </div>
         </section>
 
     </main>
