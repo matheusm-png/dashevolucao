@@ -47,17 +47,11 @@ h1, h2, h3, h4, .tk-value { font-family: 'Outfit', sans-serif; font-weight: 700;
     flex-shrink: 0;
 }
 
-.logo-icon-box {
-    background: var(--accent-gradient);
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.main-logo {
+    height: 32px;
+    width: auto;
+    display: block;
 }
-
-.logo-icon-box svg { width: 16px; height: 16px; color: #fff; }
 
 .brand-name {
     font-family: 'Outfit', sans-serif;
@@ -203,6 +197,8 @@ h1, h2, h3, h4, .tk-value { font-family: 'Outfit', sans-serif; font-weight: 700;
     color: var(--accent-light);
     z-index: 1;
 }
+.conversion-tag.tag-warning { color: var(--warning); border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.05); }
+.conversion-tag.tag-danger  { color: var(--danger);  border-color: rgba(239, 68, 68, 0.4);  background: rgba(239, 68, 68, 0.05); }
 
 /* ── PACE ATÉ O FIM DO MÊS ──────────────────── */
 .pace-dias-info {
@@ -403,3 +399,11 @@ h1, h2, h3, h4, .tk-value { font-family: 'Outfit', sans-serif; font-weight: 700;
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-glass); border-radius: 4px; }
+
+/* ── VENDAS ─────────────────────────────────── */
+.kpi-mini-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.kpi-mini-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); padding: 1.25rem; border-radius: 12px; }
+.kmc-label { font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.4rem; }
+.kmc-value { font-size: 1.3rem; font-weight: 700; color: var(--text-white); }
+.kmc-value.highlight { color: var(--success); }
+.tkpi.info .tk-value { color: #38bdf8; }

@@ -81,8 +81,9 @@ function doGet() {
     const leads = filterByMonth(ss.getSheetByName('LEADS GERAIS'));
     const agendamentos = filterByMonth(ss.getSheetByName('AGENDAMENTO'));
     const agqs = filterByMonth(ss.getSheetByName('AGQ'));
+    const vendas = filterByMonth(ss.getSheetByName('VENDAS'));
 
-    const response = processarDashboard(metas, midia, leads, agendamentos, agqs);
+    const response = processarDashboard(metas, midia, leads, agendamentos, agqs, vendas);
     return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     return ContentService.createTextOutput(JSON.stringify({ error: e.toString() })).setMimeType(ContentService.MimeType.JSON);
@@ -182,7 +183,7 @@ function filterByMonth(sheet) {
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
-  const idx = { mes: [], dataEx: -1, camp: -1, orig: -1, pub: -1, stat: -1, tipo: -1, dataP: -1 };
+  const idx = { mes: [], dataEx: -1, camp: -1, orig: -1, pub: -1, stat: -1, tipo: -1, dataP: -1, valor: -1 };
   headers.forEach((h, i) => {
     const head = h ? h.toString().toLowerCase().trim() : "";
     if (head === 'mês' || head === 'mes') idx.mes.push(i);
@@ -193,6 +194,7 @@ function filterByMonth(sheet) {
     if (head === 'status') idx.stat = i;
     if (head === 'tipo') idx.tipo = i;
     if (head === 'data') idx.dataP = i;
+    if (head === 'valor' || head === 'mrr' || head === 'faturamento') idx.valor = i;
   });
 
   const res = [];
@@ -209,15 +211,16 @@ function filterByMonth(sheet) {
         tipo: (row[idx.tipo] || "").toString().toLowerCase().trim(),
         campanha: (row[idx.camp] || "").toString(), // No CRM Campanha = Criativo
         publico: (row[idx.pub] || "").toString(), // No CRM Público = Objetivo
-        status: (row[idx.stat] || "").toString().toLowerCase().trim()
+        status: (row[idx.stat] || "").toString().toLowerCase().trim(),
+        valor: Number(row[idx.valor]) || 0
       });
     }
   }
   return res;
 }
 
-function processarDashboard(metas, midia, leads, agendamentos, agqs) {
-  const resumo = { leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, total_inv: 0 };
+function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
+  const resumo = { leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, total_inv: 0, vendas: 0, receita: 0 };
   const serie_diaria = {};
   const serie_semanal = { "S1": criarObjSemana("S1"), "S2": criarObjSemana("S2"), "S3": criarObjSemana("S3"), "S4": criarObjSemana("S4"), "S5": criarObjSemana("S5") };
   
@@ -269,7 +272,26 @@ function processarDashboard(metas, midia, leads, agendamentos, agqs) {
     } else if (q.origem === "organico") { b_organico[classificarOrganico(q.campanha)].agq++; }
   });
 
-  const resumo_final = { ...resumo, total_investimento: resumo.total_inv, cpl: resumo.leads > 0 ? (resumo.total_inv / resumo.leads) : 0, cplag: resumo.agendamentos > 0 ? (resumo.total_inv / resumo.agendamentos) : 0 };
+  if (vendas) {
+    vendas.forEach(v => {
+      const s = getSemana(v.data); const ds = v.dataStr;
+      resumo.vendas++; resumo.receita += v.valor;
+      serie_semanal[s].vendas++; serie_semanal[s].receita += v.valor;
+      if (!serie_diaria[ds]) serie_diaria[ds] = criarDia(ds); serie_diaria[ds].vendas++;
+      if (v.origem === "pago") {
+        if (v.tipo.includes("google")) { b_google[classificar(v.campanha, "", "").googleProd].vendas++; }
+        else { const obj = classificarObjetivo(v.publico); const c = classificar(v.campanha, "", v.publico); b_meta_obj[obj].vendas++; b_meta_cri[c.criativo].vendas++; }
+      } else if (v.origem === "organico") { b_organico[classificarOrganico(v.campanha)].vendas++; }
+    });
+  }
+
+  const resumo_final = { 
+    ...resumo, 
+    total_investimento: resumo.total_inv, 
+    cpl: resumo.leads > 0 ? (resumo.total_inv / resumo.leads) : 0, 
+    cplag: resumo.agendamentos > 0 ? (resumo.total_inv / resumo.agendamentos) : 0,
+    roas: resumo.total_inv > 0 ? (resumo.receita / resumo.total_inv) : 0
+  };
   return {
     metas,
     resumo_mes: resumo_final,
@@ -291,9 +313,9 @@ function getSemana(d) {
 }
 function parseDate(v) { if (v instanceof Date) return v; if (!v) return null; const p = v.toString().split('/'); if (p.length >= 2) return new Date(p[2] || 2026, p[1]-1, p[0]); return new Date(v); }
 function classificarOrganico(n) { const c = (n || "").toString().toLowerCase(); if (c.includes("google")) return "Google"; if (c.includes("instagram")) return "Instagram"; return "Desconhecido"; }
-function criarObjSemana(s) { return { nome: s, investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0 }; }
-function objB(n) { return { nome: n, investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0 }; }
-function criarDia(d) { return { data: d, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, investimento: 0 }; }
+function criarObjSemana(s) { return { nome: s, investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 }; }
+function objB(n) { return { nome: n, investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 }; }
+function criarDia(d) { return { data: d, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0, investimento: 0 }; }
 function getMetas(ss) {
   const s = ss.getSheetByName('METAS'); if(!s) return {};
   const d = s.getDataRange().getValues(); const m = {};

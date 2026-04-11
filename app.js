@@ -33,10 +33,12 @@ function renderDashboard(data) {
     document.getElementById('update-time').innerText = new Date(updated_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('top-inv').innerText   = formatCurrency(resumo_mes.total_inv);
     document.getElementById('top-leads').innerText = resumo_mes.leads;
-    document.getElementById('top-ag').innerText    = resumo_mes.agendamentos;
     document.getElementById('top-agq').innerText   = resumo_mes.agq;
+    document.getElementById('top-vendas').innerText = resumo_mes.vendas;
+    document.getElementById('top-receita').innerText = formatCurrency(resumo_mes.receita);
     document.getElementById('top-cpl').innerText   = formatCurrency(resumo_mes.cpl);
     document.getElementById('top-cplag').innerText = formatCurrency(resumo_mes.cplag);
+    document.getElementById('top-roas').innerText  = resumo_mes.roas.toFixed(2) + 'x';
 
     // Seção 1: Funil + Pace
     renderFunnel(resumo_mes);
@@ -44,6 +46,9 @@ function renderDashboard(data) {
 
     // Seção 2: Evolução diária
     renderMainChart(serie_diaria);
+
+    // Seção Performance Comercial
+    renderSalesSection(resumo_mes, breakdown_meta_obj, breakdown_google);
 
     // Seção 3: Meta Ads
     renderDonutChart('objDonutChart', breakdown_meta_obj, ['#6366f1','#a855f7','#ec4899','rgba(255,255,255,0.1)']);
@@ -64,17 +69,34 @@ function renderFunnel(r) {
     const leads = r.leads || 1;
     const ag    = r.agendamentos || 0;
     const agq   = r.agq || 0;
+    const vendas = r.vendas || 0;
     const tent  = r.tentativa || 0;
     const desc  = r.descartado || 0;
 
     updateStage('stage-leads', 100,                   leads, null);
     updateStage('stage-ag',    ag / leads * 100,       ag,    `Conv: ${(ag/leads*100).toFixed(1)}%`);
     updateStage('stage-agq',   agq / leads * 100,      agq,   `Quali: ${(agq/(ag||1)*100).toFixed(1)}%`);
+    updateStage('stage-vendas', vendas / leads * 100,  vendas, `Vendas: ${(vendas/(agq||1)*100).toFixed(1)}%`);
     updateStage('stage-tent',  tent / leads * 100,     tent,  null);
     updateStage('stage-desc',  desc / leads * 100,     desc,  null);
 
-    const taxaEl = document.getElementById('desc-taxa');
-    if (taxaEl) taxaEl.innerText = `Taxa: ${(desc/leads*100).toFixed(1)}%`;
+    const taxaDescEl = document.getElementById('desc-taxa');
+    if (taxaDescEl) {
+        const p = (desc / leads * 100);
+        taxaDescEl.innerText = `Taxa: ${p.toFixed(1)}%`;
+        taxaDescEl.className = 'conversion-tag' + (p > 35 ? ' tag-danger' : '');
+    }
+
+    const taxaTentEl = document.getElementById('tent-taxa');
+    if (taxaTentEl) {
+        const p = (tent / leads * 100);
+        taxaTentEl.innerText = `Taxa: ${p.toFixed(1)}%`;
+        taxaTentEl.className = 'conversion-tag' + (p > 25 ? ' tag-warning' : '');
+    const taxaVendasEl = document.getElementById('vendas-taxa');
+    if (taxaVendasEl) {
+        const p = (vendas / (agq || 1) * 100);
+        taxaVendasEl.innerText = `Conv: ${p.toFixed(1)}%`;
+    }
 }
 
 function updateStage(id, perc, val, tag) {
@@ -275,6 +297,47 @@ function renderTable(tableId, items) {
             <td>${cpl}</td>
         </tr>`;
     }).join('');
+}
+
+function renderSalesSection(r, meta, google) {
+    const cac = r.vendas > 0 ? formatCurrency(r.total_inv / r.vendas) : '—';
+    const roas = r.roas.toFixed(2) + 'x';
+    const ticket = r.vendas > 0 ? formatCurrency(r.receita / r.vendas) : '—';
+
+    document.getElementById('kpi-cac').innerText = cac;
+    document.getElementById('kpi-roas').innerText = roas;
+    document.getElementById('kpi-ticket').innerText = ticket;
+
+    // Gráfico de receita por canal
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    if (charts['revenue']) charts['revenue'].destroy();
+
+    const dataArr = [...meta, ...google].filter(i => i.receita > 0);
+    
+    charts['revenue'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dataArr.map(i => i.nome),
+            datasets: [{
+                label: 'Receita (R$)',
+                data: dataArr.map(i => i.receita),
+                backgroundColor: '#10b981',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: { callbacks: { label: (c) => ` Receita: ${formatCurrency(c.raw)}` } }
+            },
+            scales: {
+                y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8a8f98', callback: (v) => 'R$ ' + v } },
+                x: { grid: { display: false }, ticks: { color: '#8a8f98' } }
+            }
+        }
+    });
 }
 
 // ── HEATMAP SEMANAL ───────────────────────────────────────
