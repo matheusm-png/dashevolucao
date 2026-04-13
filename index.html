@@ -28,11 +28,12 @@
         <div class="topbar-kpis">
             <div class="tkpi"><span class="tk-label">Investimento</span><span class="tk-value" id="top-inv">—</span></div>
             <div class="tkpi"><span class="tk-label">Leads</span><span class="tk-value" id="top-leads">—</span></div>
+            <div class="tkpi success"><span class="tk-label">Agendamentos</span><span class="tk-value" id="top-ag">—</span></div>
             <div class="tkpi success"><span class="tk-label">AGQ</span><span class="tk-value" id="top-agq">—</span></div>
             <div class="tkpi success"><span class="tk-label">Vendas</span><span class="tk-value" id="top-vendas">—</span></div>
             <div class="tkpi success"><span class="tk-label">Receita</span><span class="tk-value" id="top-receita">—</span></div>
             <div class="tkpi danger"><span class="tk-label">CPL</span><span class="tk-value" id="top-cpl">—</span></div>
-            <div class="tkpi danger"><span class="tk-label">CPLag</span><span class="tk-value" id="top-cplag">—</span></div>
+            <div class="tkpi danger"><span class="tk-label">CPLAg</span><span class="tk-value" id="top-cplag">—</span></div>
             <div class="tkpi info"><span class="tk-label">ROAS</span><span class="tk-value" id="top-roas">—</span></div>
         </div>
         <div class="topbar-actions">
@@ -153,31 +154,13 @@
             </div>
         </section>
 
-        <!-- SEÇÃO NOVA: PERFORMANCE COMERCIAL (VENDAS) -->
+        <!-- SEÇÃO: PROJEÇÃO DO MÊS -->
         <section class="page-section">
-            <h2 class="section-heading"><i data-lucide="shopping-cart"></i> Performance Comercial (Vendas)</h2>
-            <div class="row-3">
-                <div class="panel glass col-2">
-                    <div class="panel-header"><h3>Receita por Produto / Origem</h3></div>
-                    <div class="chart-box-large"><canvas id="revenueChart"></canvas></div>
-                </div>
-                <div class="panel glass col-1">
-                    <div class="panel-header"><h3>Conversão Final</h3></div>
-                    <div class="kpi-mini-grid">
-                        <div class="kpi-mini-card">
-                            <span class="kmc-label">CAC Geral</span>
-                            <span class="kmc-value" id="kpi-cac">—</span>
-                        </div>
-                        <div class="kpi-mini-card">
-                            <span class="kmc-label">ROAS Atual</span>
-                            <span class="kmc-value highlight" id="kpi-roas">—</span>
-                        </div>
-                        <div class="kpi-mini-card">
-                            <span class="kmc-label">Ticket Médio</span>
-                            <span class="kmc-value" id="kpi-ticket">—</span>
-                        </div>
-                    </div>
-                </div>
+            <h2 class="section-heading"><i data-lucide="trending-up"></i> Projeção do Mês</h2>
+            <div class="proj-cards" id="proj-cards"></div>
+            <div class="panel glass" style="margin-top:1.25rem;">
+                <div class="panel-header"><h3>Atual × Projeção × Meta</h3></div>
+                <div class="chart-box-large"><canvas id="projChart"></canvas></div>
             </div>
         </section>
 
@@ -256,6 +239,9 @@
                 <div class="weekly-heatmap" id="weekly-heatmap-container"></div>
             </div>
         </section>
+
+        <!-- REVENUECHART canvas mantido oculto para não quebrar referências JS -->
+        <canvas id="revenueChart" style="display:none"></canvas>
 
     </main>
 

@@ -243,12 +243,13 @@ function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
 
   leads.forEach(l => {
     const s = getSemana(l.data); const ds = l.dataStr;
-    resumo.leads++; if (l.status === "em tentativa") resumo.tentativa++; if (l.status === "descartado") resumo.descartado++;
-    serie_semanal[s].leads++; if (l.status === "em tentativa") serie_semanal[s].tentativa++; if (l.status === "descartado") serie_semanal[s].descartado++;
+    const isTentativa = l.status === "em tentativa" || l.status === "";
+    resumo.leads++; if (isTentativa) resumo.tentativa++; if (l.status === "descartado") resumo.descartado++;
+    serie_semanal[s].leads++; if (isTentativa) serie_semanal[s].tentativa++; if (l.status === "descartado") serie_semanal[s].descartado++;
     if (!serie_diaria[ds]) serie_diaria[ds] = criarDia(ds); serie_diaria[ds].leads++;
     if (l.origem === "pago") {
-      if (l.tipo.includes("google")) { const c = classificar(l.campanha, "", ""); b_google[c.googleProd].leads++; if (l.status === "em tentativa") b_google[c.googleProd].tentativa++; if (l.status === "descartado") b_google[c.googleProd].descartado++; } 
-      else { const obj = classificarObjetivo(l.publico); const c = classificar(l.campanha, "", l.publico); b_meta_obj[obj].leads++; b_meta_cri[c.criativo].leads++; if (l.status === "em tentativa") b_meta_obj[obj].tentativa++; if (l.status === "descartado") b_meta_obj[obj].descartado++; }
+      if (l.tipo.includes("google")) { const c = classificar(l.campanha, "", ""); b_google[c.googleProd].leads++; if (isTentativa) b_google[c.googleProd].tentativa++; if (l.status === "descartado") b_google[c.googleProd].descartado++; }
+      else { const obj = classificarObjetivo(l.publico); const c = classificar(l.campanha, "", l.publico); b_meta_obj[obj].leads++; b_meta_cri[c.criativo].leads++; if (isTentativa) b_meta_obj[obj].tentativa++; if (l.status === "descartado") b_meta_obj[obj].descartado++; }
     } else if (l.origem === "organico") { const org = classificarOrganico(l.campanha); b_organico[org].leads++; }
   });
 
