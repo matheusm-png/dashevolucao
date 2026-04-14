@@ -21,7 +21,34 @@ async function fetchData() {
         metas: { leads: 300, agendamentos: 100, agq: 50 },
         pace: { dias_corridos_restantes: 20, dias_uteis_restantes: 15, leads: { meta: 300, realizado: 120, faltam: 180, pace_dia: 9, media_atual: 12 }, agendamentos: { meta: 100, realizado: 45, faltam: 55, pace_dia: 3.6, media_atual: 3 }, agq: { meta: 50, realizado: 20, faltam: 30, pace_dia: 2, media_atual: 1.3 }, feriados: [] },
         serie_diaria: [],
-        serie_semanal: [],
+        serie_semanal: [
+            { nome: "S1", investimento: 26486, leads: 82, agendamentos: 16, agq: 13, tentativa: 43, descartado: 26, vendas: 0, receita: 0 },
+            { nome: "S2", investimento: 19948, leads: 89, agendamentos: 18, agq: 13, tentativa: 58, descartado: 18, vendas: 0, receita: 0 },
+            { nome: "S3", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S4", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S5", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 }
+        ],
+        serie_semanal_meta: [
+            { nome: "S1", investimento: 20000, leads: 60, agendamentos: 12, agq: 10, tentativa: 33, descartado: 20, vendas: 0, receita: 0 },
+            { nome: "S2", investimento: 15000, leads: 65, agendamentos: 14, agq: 10, tentativa: 42, descartado: 14, vendas: 0, receita: 0 },
+            { nome: "S3", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S4", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S5", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 }
+        ],
+        serie_semanal_google: [
+            { nome: "S1", investimento: 6486, leads: 15, agendamentos: 3, agq: 2, tentativa: 8, descartado: 5, vendas: 0, receita: 0 },
+            { nome: "S2", investimento: 4948, leads: 18, agendamentos: 3, agq: 2, tentativa: 12, descartado: 3, vendas: 0, receita: 0 },
+            { nome: "S3", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S4", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S5", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 }
+        ],
+        serie_semanal_organico: [
+            { nome: "S1", investimento: 0, leads: 7, agendamentos: 1, agq: 1, tentativa: 2, descartado: 1, vendas: 0, receita: 0 },
+            { nome: "S2", investimento: 0, leads: 6, agendamentos: 1, agq: 1, tentativa: 4, descartado: 1, vendas: 0, receita: 0 },
+            { nome: "S3", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S4", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 },
+            { nome: "S5", investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 }
+        ],
         breakdown_meta_obj: [{nome: "Meta Teste", investimento: 1500, leads: 60, agendamentos: 20, agq: 10, vendas: 3, receita: 9000, tentativa: 5, descartado: 8}],
         breakdown_meta_cri: [{nome: "Criativo Teste", investimento: 1500, leads: 60, agendamentos: 20, agq: 10, tentativa: 5, descartado: 8}],
         breakdown_google: [{nome: "Google Teste", investimento: 1500, leads: 60, agendamentos: 25, agq: 10, vendas: 2, receita: 6000, tentativa: 5, descartado: 7}],
@@ -53,7 +80,8 @@ async function fetchData() {
 }
 
 function renderDashboard(data) {
-    const { resumo_mes, pace, serie_semanal, breakdown_meta_obj, breakdown_meta_cri, breakdown_google, serie_diaria, updated_at, metas } = data;
+    const { resumo_mes, pace, serie_semanal, breakdown_meta_obj, breakdown_meta_cri, breakdown_google, serie_diaria, updated_at, metas,
+            serie_semanal_meta, serie_semanal_google, serie_semanal_organico } = data;
 
     // Topbar - Atualização resiliente (evita travar se campo for undefined)
     const setVal = (id, val, suffix = '') => { 
@@ -71,6 +99,8 @@ function renderDashboard(data) {
     setVal('top-cpl',     formatCurrency(resumo_mes.cpl));
     setVal('top-cplag',   formatCurrency(resumo_mes.cplag));
     setVal('top-roas',    (resumo_mes.roas || 0).toFixed(2), 'x');
+    const roasLtv = resumo_mes.total_inv > 0 ? (resumo_mes.receita * 19) / resumo_mes.total_inv : 0;
+    setVal('top-roas-ltv', roasLtv.toFixed(2), 'x');
 
     // Seção 1: Funil + Pace
     renderFunnel(resumo_mes);
@@ -94,6 +124,7 @@ function renderDashboard(data) {
 
     // Seção 5: Semanal
     renderWeeklyHeatmap(serie_semanal);
+    renderWeeklyChannelBreakdown(serie_semanal_meta || [], serie_semanal_google || [], serie_semanal_organico || []);
 }
 
 // ── FUNIL ─────────────────────────────────────────────────
@@ -455,8 +486,10 @@ function renderProjection(r, metas, pace) {
 function renderWeeklyHeatmap(weeks) {
     const container = document.getElementById('weekly-heatmap-container');
     container.innerHTML = weeks.map((w, i) => {
-        const cpl   = w.leads > 0        ? formatCurrency(w.investimento / w.leads)        : '—';
-        const cplag = w.agendamentos > 0  ? formatCurrency(w.investimento / w.agendamentos) : '—';
+        const cpl      = w.leads > 0           ? formatCurrency(w.investimento / w.leads)        : '—';
+        const cplag    = w.agendamentos > 0    ? formatCurrency(w.investimento / w.agendamentos) : '—';
+        const taxaAg   = w.leads > 0           ? ((w.agendamentos / w.leads)        * 100).toFixed(1) + '%' : '—';
+        const taxaAgq  = w.agendamentos > 0    ? ((w.agq          / w.agendamentos) * 100).toFixed(1) + '%' : '—';
         return `
         <div class="week-card">
             <span class="w-title">Semana ${i + 1}</span>
@@ -465,10 +498,12 @@ function renderWeeklyHeatmap(weeks) {
             <div class="w-detail">
                 <div class="w-stat">
                     <span class="w-stat-val w-ag-val">${w.agendamentos}</span>
+                    <span class="w-stat-pct">${taxaAg}</span>
                     <span class="w-stat-lbl">Ag.</span>
                 </div>
                 <div class="w-stat">
                     <span class="w-stat-val w-agq-val">${w.agq}</span>
+                    <span class="w-stat-pct">${taxaAgq}</span>
                     <span class="w-stat-lbl">AGQ</span>
                 </div>
             </div>
@@ -496,6 +531,59 @@ function renderWeeklyHeatmap(weeks) {
             </div>
         </div>`;
     }).join('');
+}
+
+// ── BREAKDOWN SEMANAL POR CANAL ───────────────────────────
+function renderWeeklyChannelBreakdown(metaWeeks, googleWeeks, organicWeeks) {
+    const container = document.getElementById('weekly-channels-container');
+    if (!container) return;
+
+    const channels = [
+        { label: 'Meta Ads',   dotClass: 'meta-dot',   weeks: metaWeeks,    paid: true  },
+        { label: 'Google Ads', dotClass: 'google-dot', weeks: googleWeeks,  paid: true  },
+        { label: 'Orgânico',   dotClass: 'org-dot',    weeks: organicWeeks, paid: false }
+    ];
+
+    container.innerHTML = `<div class="weekly-channels">${
+        channels.map(ch => {
+            if (!ch.weeks || ch.weeks.length === 0) return '';
+            const cards = ch.weeks.map((w, i) => {
+                const taxaAg  = w.leads > 0        ? ((w.agendamentos / w.leads)        * 100).toFixed(1) + '%' : '—';
+                const taxaAgq = w.agendamentos > 0  ? ((w.agq          / w.agendamentos) * 100).toFixed(1) + '%' : '—';
+                const investHtml = ch.paid
+                    ? `<div class="wc-invest">${formatCurrency(w.investimento)}</div>`
+                    : '';
+                return `
+                <div class="wc-card">
+                    <span class="wc-week-label">S${i + 1}</span>
+                    <div class="wc-leads-num">${w.leads}</div>
+                    <span class="wc-leads-lbl">Leads</span>
+                    <div class="wc-detail">
+                        <div class="wc-stat">
+                            <span class="wc-val wc-ag-val">${w.agendamentos}</span>
+                            <span class="wc-pct">${taxaAg}</span>
+                            <span class="wc-lbl">AG</span>
+                        </div>
+                        <div class="wc-stat">
+                            <span class="wc-val wc-agq-val">${w.agq}</span>
+                            <span class="wc-pct">${taxaAgq}</span>
+                            <span class="wc-lbl">AGQ</span>
+                        </div>
+                    </div>
+                    ${investHtml}
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="wc-channel-section">
+                <div class="wc-channel-header">
+                    <span class="wc-dot ${ch.dotClass}"></span>
+                    <span class="wc-channel-title">${ch.label}</span>
+                </div>
+                <div class="wc-grid">${cards}</div>
+            </div>`;
+        }).join('')
+    }</div>`;
 }
 
 // ── HELPERS ───────────────────────────────────────────────
