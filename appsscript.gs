@@ -319,10 +319,32 @@ function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
   };
 }
 
+/**
+ * Calcula a semana do mês seguindo a lógica yourh:
+ * - Semana começa na segunda e termina no domingo.
+ * - A Semana 1 começa no dia 1 do mês (mesmo que seja quarta, sábado etc.)
+ *   e vai até o primeiro domingo do mês.
+ * - A Semana 2 começa na segunda seguinte e assim por diante.
+ *
+ * Exemplo Abril/2026 (começa quarta):
+ *   S1: 01–05 | S2: 06–12 | S3: 13–19 | S4: 20–26 | S5: 27–30
+ */
 function getSemana(d) {
   if (!d) return "S1";
-  const dia = parseInt(Utilities.formatDate(d, "GMT-3", "d"), 10);
-  if (dia <= 7) return "S1"; if (dia <= 14) return "S2"; if (dia <= 21) return "S3"; if (dia <= 28) return "S4"; return "S5";
+  const dia      = parseInt(Utilities.formatDate(d, "GMT-3", "d"),  10);
+  const mes      = parseInt(Utilities.formatDate(d, "GMT-3", "M"),  10) - 1; // 0-indexed
+  const ano      = parseInt(Utilities.formatDate(d, "GMT-3", "yyyy"), 10);
+
+  // Dia da semana do dia 1 do mês (0=Dom, 1=Seg, ..., 6=Sáb)
+  const primeiroDia    = new Date(ano, mes, 1);
+  const diaSemDia1     = primeiroDia.getDay();
+
+  // Dia do mês em que cai o primeiro domingo (= fim da Semana 1)
+  const primeiroDomingo = diaSemDia1 === 0 ? 1 : 1 + (7 - diaSemDia1);
+
+  if (dia <= primeiroDomingo) return "S1";
+  const semana = 1 + Math.ceil((dia - primeiroDomingo) / 7);
+  return "S" + Math.min(semana, 5);
 }
 function parseDate(v) {
   if (v instanceof Date) return v;

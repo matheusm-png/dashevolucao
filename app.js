@@ -8,7 +8,7 @@ let charts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchData();
-    setInterval(fetchData, 5 * 60 * 1000);
+    setInterval(fetchData, 25 * 60 * 1000);
     document.getElementById('refresh-btn').addEventListener('click', fetchData);
 });
 
@@ -124,7 +124,6 @@ function renderDashboard(data) {
 
     // Seção 5: Semanal
     renderWeeklyHeatmap(serie_semanal);
-    renderWeeklyChannelBreakdown(serie_semanal_meta || [], serie_semanal_google || [], serie_semanal_organico || []);
 }
 
 // ── FUNIL ─────────────────────────────────────────────────
@@ -485,7 +484,9 @@ function renderProjection(r, metas, pace) {
 // ── HEATMAP SEMANAL ───────────────────────────────────────
 function renderWeeklyHeatmap(weeks) {
     const container = document.getElementById('weekly-heatmap-container');
-    container.innerHTML = weeks.map((w, i) => {
+    const active = (weeks || []).filter(w => w.leads > 0 || w.investimento > 0);
+    if (!active.length) { container.innerHTML = '<p class="w-empty">Sem dados semanais ainda.</p>'; return; }
+    container.innerHTML = active.map((w, i) => {
         const cpl      = w.leads > 0           ? formatCurrency(w.investimento / w.leads)        : '—';
         const cplag    = w.agendamentos > 0    ? formatCurrency(w.investimento / w.agendamentos) : '—';
         const taxaAg   = w.leads > 0           ? ((w.agendamentos / w.leads)        * 100).toFixed(1) + '%' : '—';
