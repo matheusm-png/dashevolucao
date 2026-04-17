@@ -51,7 +51,17 @@ async function fetchData() {
         ],
         breakdown_meta_obj: [{nome: "Meta Teste", investimento: 1500, leads: 60, agendamentos: 20, agq: 10, vendas: 3, receita: 9000, tentativa: 5, descartado: 8}],
         breakdown_meta_cri: [{nome: "Criativo Teste", investimento: 1500, leads: 60, agendamentos: 20, agq: 10, tentativa: 5, descartado: 8}],
-        breakdown_google: [{nome: "Google Teste", investimento: 1500, leads: 60, agendamentos: 25, agq: 10, vendas: 2, receita: 6000, tentativa: 5, descartado: 7}],
+        breakdown_google: [
+            {nome: "YouPerforma",  investimento: 900,  leads: 38, agendamentos: 16, agq: 7, vendas: 1, receita: 3000, tentativa: 3, descartado: 4},
+            {nome: "YouEduca",     investimento: 400,  leads: 14, agendamentos: 6,  agq: 2, vendas: 1, receita: 3000, tentativa: 1, descartado: 2},
+            {nome: "YouRH",        investimento: 150,  leads: 6,  agendamentos: 2,  agq: 1, vendas: 0, receita: 0,    tentativa: 1, descartado: 1},
+            {nome: "YouComunica",  investimento: 50,   leads: 2,  agendamentos: 1,  agq: 0, vendas: 0, receita: 0,    tentativa: 0, descartado: 0},
+        ],
+        breakdown_organico: [
+            {nome: "Instagram", investimento: 0, leads: 18, agendamentos: 5, agq: 3, vendas: 0, receita: 0, tentativa: 4, descartado: 2},
+            {nome: "Google",    investimento: 0, leads: 8,  agendamentos: 2, agq: 1, vendas: 0, receita: 0, tentativa: 1, descartado: 1},
+            {nome: "Desconhecido", investimento: 0, leads: 4, agendamentos: 1, agq: 0, vendas: 0, receita: 0, tentativa: 0, descartado: 1}
+        ],
         updated_at: new Date().toISOString()
     };
 
@@ -80,8 +90,8 @@ async function fetchData() {
 }
 
 function renderDashboard(data) {
-    const { resumo_mes, pace, serie_semanal, breakdown_meta_obj, breakdown_meta_cri, breakdown_google, serie_diaria, updated_at, metas,
-            serie_semanal_meta, serie_semanal_google, serie_semanal_organico } = data;
+    const { resumo_mes, pace, serie_semanal, breakdown_meta_obj, breakdown_meta_cri, breakdown_google, breakdown_organico,
+            serie_diaria, updated_at, metas, serie_semanal_meta, serie_semanal_google, serie_semanal_organico } = data;
 
     // Topbar - Atualização resiliente (evita travar se campo for undefined)
     const setVal = (id, val, suffix = '') => { 
@@ -113,17 +123,25 @@ function renderDashboard(data) {
     renderProjection(resumo_mes, metas, pace);
 
     // Seção 3: Meta Ads
+    renderChannelKPIs('meta-kpi-strip', sumBreakdown(breakdown_meta_obj), true, '#6366f1');
     renderDonutChart('objDonutChart', breakdown_meta_obj, ['#6366f1','#a855f7','#ec4899','rgba(255,255,255,0.1)']);
     renderBarChart('criBarChart', breakdown_meta_cri);
     renderTable('table-meta-obj', breakdown_meta_obj);
 
     // Seção 4: Google Ads
+    renderChannelKPIs('google-kpi-strip', sumBreakdown(breakdown_google), true, '#10b981');
     renderDonutChart('googleDonutChart', breakdown_google, ['#10b981','#f59e0b','#6366f1','rgba(255,255,255,0.1)']);
     renderLeadsBarChart('googleLeadsChart', breakdown_google);
     renderTable('table-google', breakdown_google);
 
+    // Seção 4B: Orgânico
+    const orgTotal = sumBreakdown(breakdown_organico || []);
+    renderChannelKPIs('organic-kpi-strip', orgTotal, false, '#f59e0b');
+    renderTableOrganico('table-organico', breakdown_organico || []);
+
     // Seção 5: Semanal
     renderWeeklyHeatmap(serie_semanal);
+    renderWeeklyChannelBreakdown(serie_semanal_meta, serie_semanal_google, serie_semanal_organico);
 }
 
 // ── FUNIL ─────────────────────────────────────────────────
@@ -350,7 +368,9 @@ function renderTable(tableId, items) {
     if (!tbody) return;
 
     tbody.innerHTML = items.map(item => {
-        const cpl = item.leads > 0 ? formatCurrency(item.investimento / item.leads) : '—';
+        const cpl     = item.leads > 0           ? formatCurrency(item.investimento / item.leads)        : '—';
+        const taxaAg  = item.leads > 0           ? ((item.agendamentos / item.leads)        * 100).toFixed(1) + '%' : '—';
+        const taxaAgq = item.agendamentos > 0    ? ((item.agq          / item.agendamentos) * 100).toFixed(1) + '%' : '—';
         return `<tr>
             <td>${item.nome}</td>
             <td>${formatCurrency(item.investimento)}</td>
@@ -360,6 +380,8 @@ function renderTable(tableId, items) {
             <td>${item.tentativa}</td>
             <td>${item.descartado}</td>
             <td>${cpl}</td>
+            <td class="taxa-cell">${taxaAg}</td>
+            <td class="taxa-cell">${taxaAgq}</td>
         </tr>`;
     }).join('');
 }
@@ -545,15 +567,35 @@ function renderWeeklyChannelBreakdown(metaWeeks, googleWeeks, organicWeeks) {
         { label: 'Orgânico',   dotClass: 'org-dot',    weeks: organicWeeks, paid: false }
     ];
 
-    container.innerHTML = `<div class="weekly-channels">${
-        channels.map(ch => {
-            if (!ch.weeks || ch.weeks.length === 0) return '';
-            const cards = ch.weeks.map((w, i) => {
-                const taxaAg  = w.leads > 0        ? ((w.agendamentos / w.leads)        * 100).toFixed(1) + '%' : '—';
-                const taxaAgq = w.agendamentos > 0  ? ((w.agq          / w.agendamentos) * 100).toFixed(1) + '%' : '—';
+    // Descobre quantas semanas têm dados no geral (para alinhar o grid)
+    const allWeeks = [...(metaWeeks || []), ...(googleWeeks || []), ...(organicWeeks || [])];
+    const totalSemanas = allWeeks.reduce((max, w, i) => {
+        const idx = (metaWeeks || []).indexOf(w) >= 0 ? (metaWeeks || []).indexOf(w)
+                  : (googleWeeks || []).indexOf(w) >= 0 ? (googleWeeks || []).indexOf(w)
+                  : (organicWeeks || []).indexOf(w);
+        return (w.leads > 0 || w.investimento > 0) ? Math.max(max, idx + 1) : max;
+    }, 1);
+
+    const html = channels.map(ch => {
+        if (!ch.weeks || ch.weeks.length === 0) return '';
+
+        // Filtra só semanas com dados neste canal
+        const activeWeeks = ch.weeks.filter(w => w.leads > 0 || w.investimento > 0);
+        if (activeWeeks.length === 0) return '';
+
+        const cards = ch.weeks
+            .map((w, i) => {
+                const temDados = w.leads > 0 || w.investimento > 0;
+                if (!temDados) return '';
+
+                const taxaAg  = w.leads > 0         ? ((w.agendamentos / w.leads)        * 100).toFixed(1) + '%' : '—';
+                const taxaAgq = w.agendamentos > 0   ? ((w.agq          / w.agendamentos) * 100).toFixed(1) + '%' : '—';
+                const cpl     = w.leads > 0 && w.investimento > 0
+                    ? `<div class="wc-cpl">${formatCurrency(w.investimento / w.leads)} <span>CPL</span></div>` : '';
                 const investHtml = ch.paid
-                    ? `<div class="wc-invest">${formatCurrency(w.investimento)}</div>`
+                    ? `<div class="wc-invest">${formatCurrency(w.investimento)}</div>${cpl}`
                     : '';
+
                 return `
                 <div class="wc-card">
                     <span class="wc-week-label">S${i + 1}</span>
@@ -575,16 +617,86 @@ function renderWeeklyChannelBreakdown(metaWeeks, googleWeeks, organicWeeks) {
                 </div>`;
             }).join('');
 
-            return `
-            <div class="wc-channel-section">
-                <div class="wc-channel-header">
-                    <span class="wc-dot ${ch.dotClass}"></span>
-                    <span class="wc-channel-title">${ch.label}</span>
-                </div>
-                <div class="wc-grid">${cards}</div>
-            </div>`;
-        }).join('')
-    }</div>`;
+        return `
+        <div class="wc-channel-section">
+            <div class="wc-channel-header">
+                <span class="wc-dot ${ch.dotClass}"></span>
+                <span class="wc-channel-title">${ch.label}</span>
+            </div>
+            <div class="wc-grid">${cards}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `<div class="weekly-channels">${html}</div>`;
+    lucide.createIcons();
+}
+
+// ── CHANNEL KPI STRIP ─────────────────────────────────────
+function sumBreakdown(items) {
+    return (items || []).reduce((acc, item) => ({
+        investimento: acc.investimento + (item.investimento || 0),
+        leads:        acc.leads        + (item.leads        || 0),
+        agendamentos: acc.agendamentos + (item.agendamentos || 0),
+        agq:          acc.agq          + (item.agq          || 0),
+        tentativa:    acc.tentativa    + (item.tentativa    || 0),
+        descartado:   acc.descartado   + (item.descartado   || 0),
+        vendas:       acc.vendas       + (item.vendas       || 0),
+        receita:      acc.receita      + (item.receita      || 0),
+    }), { investimento: 0, leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, vendas: 0, receita: 0 });
+}
+
+function renderChannelKPIs(containerId, t, showInvestimento, accentColor) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    const cpl    = t.leads > 0 && t.investimento > 0 ? formatCurrency(t.investimento / t.leads)        : '—';
+    const cplag  = t.agendamentos > 0 && t.investimento > 0 ? formatCurrency(t.investimento / t.agendamentos) : '—';
+    const taxaAg  = t.leads > 0        ? ((t.agendamentos / t.leads)        * 100).toFixed(1) + '%' : '—';
+    const taxaAgq = t.agendamentos > 0 ? ((t.agq          / t.agendamentos) * 100).toFixed(1) + '%' : '—';
+    const taxaDesc = t.leads > 0       ? ((t.descartado   / t.leads)        * 100).toFixed(1) + '%' : '—';
+
+    const kpis = [
+        ...(showInvestimento ? [{ label: 'Investimento', value: formatCurrency(t.investimento), cls: 'ckpi-inv', accent: accentColor }] : []),
+        { label: 'Leads',         value: t.leads,        cls: 'ckpi-leads' },
+        { label: 'Agendamentos',  value: t.agendamentos, cls: 'ckpi-ag'    },
+        { label: 'AGQ',           value: t.agq,          cls: 'ckpi-agq'   },
+        { label: 'Em Tentativa',  value: t.tentativa,    cls: 'ckpi-tent'  },
+        { label: 'Descartados',   value: t.descartado,   cls: 'ckpi-desc'  },
+        ...(showInvestimento ? [
+            { label: 'CPL',   value: cpl,   cls: 'ckpi-cpl'   },
+            { label: 'CPLAg', value: cplag, cls: 'ckpi-cplag' },
+        ] : []),
+        { label: 'Taxa AG',  value: taxaAg,   cls: 'ckpi-taxa' },
+        { label: 'Taxa AGQ', value: taxaAgq,  cls: 'ckpi-taxa' },
+        { label: '% Descarte', value: taxaDesc, cls: 'ckpi-desc-pct' },
+    ];
+
+    el.innerHTML = kpis.map(k => `
+        <div class="ckpi-card ${k.cls}">
+            <span class="ckpi-val"${k.accent ? ` style="color:${k.accent}"` : ''}>${k.value}</span>
+            <span class="ckpi-label">${k.label}</span>
+        </div>
+    `).join('');
+}
+
+// ── TABELA ORGÂNICO ───────────────────────────────────────
+function renderTableOrganico(tableId, items) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
+    tbody.innerHTML = items.map(item => {
+        const taxaAg  = item.leads > 0        ? ((item.agendamentos / item.leads)        * 100).toFixed(1) + '%' : '—';
+        const taxaAgq = item.agendamentos > 0 ? ((item.agq          / item.agendamentos) * 100).toFixed(1) + '%' : '—';
+        return `<tr>
+            <td>${item.nome}</td>
+            <td>${item.leads}</td>
+            <td>${item.agendamentos}</td>
+            <td>${item.agq}</td>
+            <td>${item.tentativa}</td>
+            <td>${item.descartado}</td>
+            <td>${taxaAg}</td>
+            <td>${taxaAgq}</td>
+        </tr>`;
+    }).join('');
 }
 
 // ── HELPERS ───────────────────────────────────────────────

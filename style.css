@@ -475,12 +475,30 @@ h1, h2, h3, h4, .tk-value { font-family: 'Outfit', sans-serif; font-weight: 700;
 .w-tent-val  { color: #fbbf24; }
 .w-desc-val  { color: var(--danger); }
 
+/* ── SECTION SUB HEADING ─────────────────────── */
+.section-sub-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+}
+.section-sub-heading svg {
+    width: 14px;
+    height: 14px;
+    stroke: var(--text-muted);
+}
+
 /* ── WEEKLY CHANNEL BREAKDOWN ───────────────── */
 .weekly-channels {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    margin-top: 1.25rem;
+    margin-top: 0;
 }
 .wc-channel-section {
     background: rgba(255,255,255,0.02);
@@ -576,8 +594,81 @@ h1, h2, h3, h4, .tk-value { font-family: 'Outfit', sans-serif; font-weight: 700;
     font-size: 0.65rem;
     color: var(--accent-light);
     font-weight: 600;
-    margin-top: 0.1rem;
+    margin-top: 0.4rem;
 }
+.wc-cpl {
+    font-size: 0.6rem;
+    color: #f87171;
+    font-weight: 600;
+    margin-top: 0.15rem;
+}
+.wc-cpl span {
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-left: 2px;
+}
+
+/* ── CHANNEL KPI STRIP ──────────────────────── */
+.channel-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 0.75rem;
+}
+.channel-kpi-strip--organic {
+    grid-template-columns: repeat(8, 1fr);
+}
+
+.ckpi-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-glass);
+    border-radius: 14px;
+    padding: 1.1rem 0.75rem 0.9rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ckpi-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 0 16px rgba(0,0,0,0.25);
+}
+.ckpi-val {
+    font-size: 1.45rem;
+    font-weight: 800;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-white);
+    line-height: 1;
+}
+.ckpi-label {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* Cores por tipo */
+.ckpi-inv   .ckpi-val { /* cor vem inline via accent */ }
+.ckpi-leads .ckpi-val { color: #e2e8f0; }
+.ckpi-ag    .ckpi-val { color: var(--success); }
+.ckpi-agq   .ckpi-val { color: var(--warning); }
+.ckpi-tent  .ckpi-val { color: #fbbf24; }
+.ckpi-desc  .ckpi-val { color: var(--danger); }
+.ckpi-cpl   .ckpi-val { color: #f87171; }
+.ckpi-cplag .ckpi-val { color: #fb923c; }
+.ckpi-taxa  .ckpi-val { color: #94a3b8; font-size: 1.2rem; }
+.ckpi-desc-pct .ckpi-val { color: #f87171; font-size: 1.2rem; }
+
+/* Bordas de destaque sutis por tipo */
+.ckpi-inv   { border-top: 2px solid rgba(99,102,241,0.4); }
+.ckpi-ag    { border-top: 2px solid rgba(16,185,129,0.35); }
+.ckpi-agq   { border-top: 2px solid rgba(245,158,11,0.35); }
+.ckpi-cpl   { border-top: 2px solid rgba(248,113,113,0.3); }
+.ckpi-cplag { border-top: 2px solid rgba(251,146,60,0.3); }
 
 /* ── PROJEÇÃO DO MÊS ────────────────────────── */
 .proj-cards {

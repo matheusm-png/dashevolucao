@@ -168,7 +168,9 @@
         <!-- SEÇÃO 3: META ADS -->
         <section class="page-section">
             <h2 class="section-heading"><i data-lucide="facebook"></i> Meta Ads</h2>
-            <div class="row-2">
+            <!-- KPI Strip -->
+            <div class="channel-kpi-strip" id="meta-kpi-strip"></div>
+            <div class="row-2" style="margin-top:1.25rem">
                 <div class="panel glass">
                     <div class="panel-header"><h3>Por Objetivo (Conjunto de Anúncios)</h3></div>
                     <div class="chart-box"><canvas id="objDonutChart"></canvas></div>
@@ -178,7 +180,6 @@
                     <div class="chart-box"><canvas id="criBarChart"></canvas></div>
                 </div>
             </div>
-            <!-- Tabela de objetivos -->
             <div class="panel glass">
                 <div class="panel-header"><h3>Detalhamento por Objetivo</h3></div>
                 <div class="table-wrap">
@@ -202,7 +203,9 @@
         <!-- SEÇÃO 4: GOOGLE ADS -->
         <section class="page-section">
             <h2 class="section-heading"><i data-lucide="search"></i> Google Ads</h2>
-            <div class="row-2">
+            <!-- KPI Strip -->
+            <div class="channel-kpi-strip" id="google-kpi-strip"></div>
+            <div class="row-2" style="margin-top:1.25rem">
                 <div class="panel glass">
                     <div class="panel-header"><h3>Investimento por Produto</h3></div>
                     <div class="chart-box"><canvas id="googleDonutChart"></canvas></div>
@@ -212,7 +215,6 @@
                     <div class="chart-box"><canvas id="googleLeadsChart"></canvas></div>
                 </div>
             </div>
-            <!-- Tabela Google -->
             <div class="panel glass">
                 <div class="panel-header"><h3>Detalhamento por Produto</h3></div>
                 <div class="table-wrap">
@@ -233,11 +235,42 @@
             </div>
         </section>
 
+        <!-- SEÇÃO 4B: ORGÂNICO -->
+        <section class="page-section">
+            <h2 class="section-heading"><i data-lucide="leaf"></i> Orgânico</h2>
+            <!-- KPI Strip -->
+            <div class="channel-kpi-strip channel-kpi-strip--organic" id="organic-kpi-strip"></div>
+            <div class="panel glass" style="margin-top:1.25rem">
+                <div class="panel-header"><h3>Detalhamento por Origem</h3></div>
+                <div class="table-wrap">
+                    <table class="dash-table" id="table-organico">
+                        <thead><tr>
+                            <th>Origem</th>
+                            <th>Leads</th>
+                            <th>Agendamentos</th>
+                            <th>AGQ</th>
+                            <th>Em Tentativa</th>
+                            <th>Descartados</th>
+                            <th>Taxa AG</th>
+                            <th>Taxa AGQ</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- SEÇÃO 5: SEMANAL -->
         <section class="page-section">
             <h2 class="section-heading"><i data-lucide="calendar"></i> Desempenho Semanal</h2>
             <div class="panel glass">
                 <div class="weekly-heatmap" id="weekly-heatmap-container"></div>
+            </div>
+            <div class="panel glass" style="margin-top:1.25rem">
+                <div class="section-sub-heading">
+                    <i data-lucide="layers"></i> Por Canal
+                </div>
+                <div id="weekly-channels-container"></div>
             </div>
         </section>
 

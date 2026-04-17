@@ -118,8 +118,9 @@ function classificar(anuncio, grupo, publico) {
 
   // Classificação de GOOGLE (Produto)
   let googleProd = "Outros";
-  if (fullText.includes("performa") || fullText.includes("desempenho") || fullText.includes("aval")) googleProd = "Avaliacao de desempenho";
-  else if (fullText.includes("educa") || fullText.includes("jordana")) googleProd = "YouEduca";
+  if (fullText.includes("performa") || fullText.includes("desempenho") || fullText.includes("aval")) googleProd = "YouPerforma";
+  else if (fullText.includes("comunica")) googleProd = "YouComunica";
+  else if (fullText.includes("educa")) googleProd = "YouEduca";
   else if (fullText.includes("rh") || fullText.includes("sistema")) googleProd = "YouRH";
 
   return { objetivo, criativo, googleProd };
@@ -231,7 +232,7 @@ function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
   
   const b_meta_obj = { "Int Frio": objB("Int Frio"), "Semelhante": objB("Semelhante"), "RMKT": objB("RMKT"), "Outros": objB("Outros") };
   const b_meta_cri = { "UC motion": objB("UC motion"), "Let T&D": objB("Let T&D"), "Jordana": objB("Jordana"), "Anna 2": objB("Anna 2"), "Vini Promo": objB("Vini Promo"), "Amanda/Aval": objB("Amanda/Aval"), "Prova Social": objB("Prova Social"), "Outros": objB("Outros") };
-  const b_google = { "Avaliacao de desempenho": objB("Avaliacao de desempenho"), "YouEduca": objB("YouEduca"), "YouRH": objB("YouRH"), "Outros": objB("Outros") };
+  const b_google = { "YouPerforma": objB("YouPerforma"), "YouComunica": objB("YouComunica"), "YouEduca": objB("YouEduca"), "YouRH": objB("YouRH"), "Outros": objB("Outros") };
   const b_organico = { "Desconhecido": objB("Desconhecido"), "Google": objB("Google"), "Instagram": objB("Instagram"), "Outros": objB("Outros") };
 
   const semanal_meta     = { "S1": criarObjSemana("S1"), "S2": criarObjSemana("S2"), "S3": criarObjSemana("S3"), "S4": criarObjSemana("S4"), "S5": criarObjSemana("S5") };
