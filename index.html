@@ -38,6 +38,14 @@
             <div class="tkpi info"><span class="tk-label">ROAS LTV</span><span class="tk-value" id="top-roas-ltv">—</span></div>
         </div>
         <div class="topbar-actions">
+            <select id="month-selector" class="glass-select">
+                <option value="1">Janeiro 2026</option>
+                <option value="2">Fevereiro 2026</option>
+                <option value="3">Março 2026</option>
+                <option value="4" selected>Abril 2026</option>
+                <option value="5">Maio 2026</option>
+                <option value="all">Ano Todo (2026)</option>
+            </select>
             <span class="update-label">Sync: <span id="update-time">--:--</span></span>
             <button id="refresh-btn" class="glow-btn"><i data-lucide="refresh-cw"></i></button>
         </div>
@@ -88,61 +96,68 @@
                 <!-- Pace até o fim do mês -->
                 <div class="panel glass col-1">
                     <div class="panel-header"><h3><i data-lucide="rocket"></i> Pace até o Fim do Mês</h3></div>
+                    
+                    <div id="pace-content">
+                        <div class="pace-dias-info" id="pace-dias-info">
+                            <span class="pdi pdi-corrido"><i data-lucide="calendar-days"></i> — dias corridos</span>
+                            <span class="pdi pdi-util"><i data-lucide="briefcase"></i> — dias úteis</span>
+                        </div>
 
-                    <div class="pace-dias-info" id="pace-dias-info">
-                        <span class="pdi pdi-corrido"><i data-lucide="calendar-days"></i> — dias corridos</span>
-                        <span class="pdi pdi-util"><i data-lucide="briefcase"></i> — dias úteis</span>
+                        <!-- Leads (todo dia) -->
+                        <div class="pace-row">
+                            <div class="pr-header">
+                                <span class="pr-label">Leads <em>· todo dia</em></span>
+                                <span class="pr-count" id="pr-leads-count">—</span>
+                            </div>
+                            <div class="pr-track"><div class="pr-fill pr-fill-indigo" id="pr-leads-bar"></div></div>
+                            <div class="pr-footer">
+                                <span class="pr-faltam" id="pr-leads-faltam">Faltam —</span>
+                            </div>
+                            <div class="pr-media-row">
+                                <span class="pr-media-atual" id="pr-leads-media">Atual —/dia</span>
+                                <span class="pr-pace" id="pr-leads-pace">Precisa —/dia</span>
+                            </div>
+                        </div>
+
+                        <!-- Agendamentos (dia útil) -->
+                        <div class="pace-row">
+                            <div class="pr-header">
+                                <span class="pr-label">Agendamentos <em>· dia útil</em></span>
+                                <span class="pr-count" id="pr-ag-count">—</span>
+                            </div>
+                            <div class="pr-track"><div class="pr-fill pr-fill-green" id="pr-ag-bar"></div></div>
+                            <div class="pr-footer">
+                                <span class="pr-faltam" id="pr-ag-faltam">Faltam —</span>
+                            </div>
+                            <div class="pr-media-row">
+                                <span class="pr-media-atual" id="pr-ag-media">Atual —/dia</span>
+                                <span class="pr-pace" id="pr-ag-pace">Precisa —/dia</span>
+                            </div>
+                        </div>
+
+                        <!-- AGQ (dia útil) -->
+                        <div class="pace-row">
+                            <div class="pr-header">
+                                <span class="pr-label">AGQ <em>· dia útil</em></span>
+                                <span class="pr-count" id="pr-agq-count">—</span>
+                            </div>
+                            <div class="pr-track"><div class="pr-fill pr-fill-amber" id="pr-agq-bar"></div></div>
+                            <div class="pr-footer">
+                                <span class="pr-faltam" id="pr-agq-faltam">Faltam —</span>
+                            </div>
+                            <div class="pr-media-row">
+                                <span class="pr-media-atual" id="pr-agq-media">Atual —/dia</span>
+                                <span class="pr-pace" id="pr-agq-pace">Precisa —/dia</span>
+                            </div>
+                        </div>
+
+                        <div class="pace-feriados-note" id="pace-feriados-note"></div>
                     </div>
-
-                    <!-- Leads (todo dia) -->
-                    <div class="pace-row">
-                        <div class="pr-header">
-                            <span class="pr-label">Leads <em>· todo dia</em></span>
-                            <span class="pr-count" id="pr-leads-count">—</span>
-                        </div>
-                        <div class="pr-track"><div class="pr-fill pr-fill-indigo" id="pr-leads-bar"></div></div>
-                        <div class="pr-footer">
-                            <span class="pr-faltam" id="pr-leads-faltam">Faltam —</span>
-                        </div>
-                        <div class="pr-media-row">
-                            <span class="pr-media-atual" id="pr-leads-media">Atual —/dia</span>
-                            <span class="pr-pace" id="pr-leads-pace">Precisa —/dia</span>
-                        </div>
+                    
+                    <div id="pace-empty" style="display:none; text-align:center; padding: 4rem 0; color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+                        <i data-lucide="bar-chart-2" style="width:32px;height:32px;margin-bottom:0.8rem;opacity:0.5;"></i><br>
+                        Métricas de Pace não disponíveis<br>na visão consolidada do ano.
                     </div>
-
-                    <!-- Agendamentos (dia útil) -->
-                    <div class="pace-row">
-                        <div class="pr-header">
-                            <span class="pr-label">Agendamentos <em>· dia útil</em></span>
-                            <span class="pr-count" id="pr-ag-count">—</span>
-                        </div>
-                        <div class="pr-track"><div class="pr-fill pr-fill-green" id="pr-ag-bar"></div></div>
-                        <div class="pr-footer">
-                            <span class="pr-faltam" id="pr-ag-faltam">Faltam —</span>
-                        </div>
-                        <div class="pr-media-row">
-                            <span class="pr-media-atual" id="pr-ag-media">Atual —/dia</span>
-                            <span class="pr-pace" id="pr-ag-pace">Precisa —/dia</span>
-                        </div>
-                    </div>
-
-                    <!-- AGQ (dia útil) -->
-                    <div class="pace-row">
-                        <div class="pr-header">
-                            <span class="pr-label">AGQ <em>· dia útil</em></span>
-                            <span class="pr-count" id="pr-agq-count">—</span>
-                        </div>
-                        <div class="pr-track"><div class="pr-fill pr-fill-amber" id="pr-agq-bar"></div></div>
-                        <div class="pr-footer">
-                            <span class="pr-faltam" id="pr-agq-faltam">Faltam —</span>
-                        </div>
-                        <div class="pr-media-row">
-                            <span class="pr-media-atual" id="pr-agq-media">Atual —/dia</span>
-                            <span class="pr-pace" id="pr-agq-pace">Precisa —/dia</span>
-                        </div>
-                    </div>
-
-                    <div class="pace-feriados-note" id="pace-feriados-note"></div>
                 </div>
             </div>
         </section>

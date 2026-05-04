@@ -99,6 +99,30 @@ h1, h2, h3, h4, .tk-value { font-family: 'Outfit', sans-serif; font-weight: 700;
 .glow-btn:hover { opacity: 0.85; }
 .glow-btn svg { width: 15px; height: 15px; }
 
+.glass-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    color: var(--text-white);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    outline: none;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: border-color 0.2s;
+}
+
+.glass-select:hover, .glass-select:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.glass-select option {
+    background: var(--bg-main);
+    color: var(--text-white);
+}
+
 /* ── PAGE ───────────────────────────────────── */
 .page {
     max-width: 1400px;

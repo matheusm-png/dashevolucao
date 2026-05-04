@@ -1,24 +1,38 @@
 /**
- * DASHBOARD DE PERFORMANCE - ABRIL 2026
+ * DASHBOARD DE PERFORMANCE
  * Backend Google Apps Script - V8 (Inteligência por Grupo de Anúncios)
  */
 
 const SPREADSHEET_ID = '1QMS8QfKbEvVwdIRI9zZlF_8ilO-Ap-Lmske_PZ5_m-8';
-const ANO_ALVO = 2026;
-const MES_ALVO = 3; // 0-indexed: abril = 3
 
-// Feriados de abril/2026 (dias do mês) — atualizar conforme calendário
-const FERIADOS_MES = [18, 21]; // 18/04 Sexta-feira Santa · 21/04 Tiradentes
+// Feriados mapeados por mês (0-indexed: 0=Jan, 1=Fev, 2=Mar, 3=Abr, 4=Mai)
+const FERIADOS = {
+  0: [1],      // Janeiro: Confraternização Universal
+  1: [16, 17], // Fevereiro: Carnaval
+  2: [],       // Março
+  3: [18, 21], // Abril: Sexta-feira Santa, Tiradentes
+  4: [1],      // Maio: Dia do Trabalhador
+};
 
-function calcularPace(resumo, metas) {
+function normalizeString(str) {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function getMesNome(mesIdx) {
+  return ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][mesIdx];
+}
+
+function calcularPace(resumo, metas, config) {
+  if (config.isYear) return null; // Pace não faz sentido no agregado do ano
+
   const hoje = new Date();
-  const ultimoDia = new Date(ANO_ALVO, MES_ALVO + 1, 0).getDate(); // 30
+  const ultimoDia = new Date(config.ano, config.mes + 1, 0).getDate();
 
   // Dia de início: hoje se estivermos no mês alvo, senão dia 1 (ou passado)
   let diaInicio;
-  if (hoje.getFullYear() === ANO_ALVO && hoje.getMonth() === MES_ALVO) {
+  if (hoje.getFullYear() === config.ano && hoje.getMonth() === config.mes) {
     diaInicio = hoje.getDate();
-  } else if (hoje < new Date(ANO_ALVO, MES_ALVO, 1)) {
+  } else if (hoje < new Date(config.ano, config.mes, 1)) {
     diaInicio = 1; // mês ainda não começou
   } else {
     diaInicio = ultimoDia + 1; // mês já passou
@@ -28,8 +42,8 @@ function calcularPace(resumo, metas) {
   let diasCorridosRestantes = Math.max(0, ultimoDia - diaInicio + 1);
   let diasUteisRestantes = 0;
   for (let d = diaInicio; d <= ultimoDia; d++) {
-    const dow = new Date(ANO_ALVO, MES_ALVO, d).getDay();
-    if (dow !== 0 && dow !== 6 && !FERIADOS_MES.includes(d)) diasUteisRestantes++;
+    const dow = new Date(config.ano, config.mes, d).getDay();
+    if (dow !== 0 && dow !== 6 && !config.feriados.includes(d)) diasUteisRestantes++;
   }
 
   // Dias já passados (dias completos = ontem para trás)
@@ -37,8 +51,8 @@ function calcularPace(resumo, metas) {
   let diasCorridosPassados = diaPassado;
   let diasUteisPassados = 0;
   for (let d = 1; d <= diaPassado; d++) {
-    const dow = new Date(ANO_ALVO, MES_ALVO, d).getDay();
-    if (dow !== 0 && dow !== 6 && !FERIADOS_MES.includes(d)) diasUteisPassados++;
+    const dow = new Date(config.ano, config.mes, d).getDay();
+    if (dow !== 0 && dow !== 6 && !config.feriados.includes(d)) diasUteisPassados++;
   }
 
   const metaLeads = metas.leads || 0;
@@ -54,7 +68,7 @@ function calcularPace(resumo, metas) {
     dias_uteis_restantes:    diasUteisRestantes,
     dias_corridos_passados:  diasCorridosPassados,
     dias_uteis_passados:     diasUteisPassados,
-    feriados: FERIADOS_MES.map(d => `${String(d).padStart(2,'0')}/04`),
+    feriados: config.feriados.map(d => `${String(d).padStart(2,'0')}/${String(config.mes+1).padStart(2,'0')}`),
     leads: {
       meta: metaLeads, realizado: resumo.leads, faltam: faltamLeads,
       pace_dia:    diasCorridosRestantes > 0 ? faltamLeads       / diasCorridosRestantes : 0,
@@ -73,20 +87,46 @@ function calcularPace(resumo, metas) {
   };
 }
 
-function doGet() {
+function doGet(e) {
   try {
+    const mesParam = (e && e.parameter && e.parameter.mes) ? e.parameter.mes : "4";
+    const anoParam = (e && e.parameter && e.parameter.ano) ? parseInt(e.parameter.ano) : 2026;
+    const isYear = (mesParam === 'all');
+    
+    const config = {
+      ano: anoParam,
+      mes: isYear ? null : parseInt(mesParam) - 1, // 0-indexed no JS
+      isYear: isYear,
+      feriados: isYear ? [] : (FERIADOS[parseInt(mesParam) - 1] || [])
+    };
+
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'dash_data_' + config.ano + '_' + mesParam;
+    
+    const forceUpdate = (e && e.parameter && e.parameter.refresh === 'true');
+    if (!forceUpdate) {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const metas = getMetas(ss);
-    const midia = getDadosMidia(ss);
-    const leads = filterByMonth(ss.getSheetByName('LEADS GERAIS'));
-    const agendamentos = filterByMonth(ss.getSheetByName('AGENDAMENTO'));
-    const agqs = filterByMonth(ss.getSheetByName('AGQ'));
-    const vendas = filterByMonth(ss.getSheetByName('VENDAS'));
+    const midia = getDadosMidia(ss, config);
+    const leads = filterByMonth(ss.getSheetByName('LEADS GERAIS'), config);
+    const agendamentos = filterByMonth(ss.getSheetByName('AGENDAMENTO'), config);
+    const agqs = filterByMonth(ss.getSheetByName('AGQ'), config);
+    const vendas = filterByMonth(ss.getSheetByName('VENDAS'), config);
 
-    const response = processarDashboard(metas, midia, leads, agendamentos, agqs, vendas);
-    return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
-  } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({ error: e.toString() })).setMimeType(ContentService.MimeType.JSON);
+    const response = processarDashboard(metas, midia, leads, agendamentos, agqs, vendas, config);
+    const responseStr = JSON.stringify(response);
+    
+    cache.put(cacheKey, responseStr, 60 * 15); // Cache por 15 minutos
+
+    return ContentService.createTextOutput(responseStr).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -126,7 +166,7 @@ function classificar(anuncio, grupo, publico) {
   return { objetivo, criativo, googleProd };
 }
 
-function getDadosMidia(ss) {
+function getDadosMidia(ss, config) {
   const metaSheet = ss.getSheetByName('META ADS');
   const googleSheet = ss.getSheetByName('GOOGLE ADS');
   const registros = { meta: [], google: [] };
@@ -141,7 +181,7 @@ function getDadosMidia(ss) {
 
     for (let i = 1; i < data.length; i++) {
         const d = parseDate(data[i][idxDay]);
-        if (d && d.getFullYear() === ANO_ALVO && d.getMonth() === MES_ALVO) {
+        if (d && d.getFullYear() === config.ano && (config.isYear || d.getMonth() === config.mes)) {
           const c = classificar(data[i][idxName], data[i][idxGrp], "");
           registros.meta.push({
             campanha: data[i][idxName].toString(),
@@ -166,7 +206,7 @@ function getDadosMidia(ss) {
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
         const d = parseDate(row[idxData]);
-        if (d && d.getFullYear() === ANO_ALVO && d.getMonth() === MES_ALVO) {
+        if (d && d.getFullYear() === config.ano && (config.isYear || d.getMonth() === config.mes)) {
           const c = classificar(row[idxCamp], row[idxGrpHeader], "");
           registros.google.push({ 
             campanha: row[idxCamp].toString(), 
@@ -180,7 +220,7 @@ function getDadosMidia(ss) {
   return registros;
 }
 
-function filterByMonth(sheet) {
+function filterByMonth(sheet, config) {
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
@@ -200,12 +240,26 @@ function filterByMonth(sheet) {
   });
 
   const res = [];
+  const searchStr = config.isYear ? config.ano.toString() : (getMesNome(config.mes) + " " + config.ano);
+  const searchStrNorm = normalizeString(searchStr);
+
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    let ehAbril = false;
-    idx.mes.forEach(mIdx => { if ((row[mIdx] || "").toString().toLowerCase().includes("abril 2026")) ehAbril = true; });
-    if (ehAbril) {
-      const d = parseDate(row[idx.dataEx] || row[idx.dataP]);
+    let naCompetencia = false;
+    
+    idx.mes.forEach(mIdx => { 
+      const cellVal = normalizeString((row[mIdx] || "").toString());
+      if (cellVal.includes(searchStrNorm) || (config.isYear && cellVal.includes(config.ano.toString()))) {
+         naCompetencia = true;
+      }
+    });
+
+    const d = parseDate(row[idx.dataEx] || row[idx.dataP]);
+    if (d && d.getFullYear() === config.ano && (config.isYear || d.getMonth() === config.mes)) {
+       naCompetencia = true;
+    }
+
+    if (naCompetencia) {
       const semanaRaw = idx.semana >= 0 ? (row[idx.semana] || "").toString().trim() : "";
       const semanaNum = semanaRaw.match(/(\d)/);
       const semana = semanaNum ? "S" + semanaNum[1] : null;
@@ -225,7 +279,7 @@ function filterByMonth(sheet) {
   return res;
 }
 
-function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
+function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas, config) {
   const resumo = { leads: 0, agendamentos: 0, agq: 0, tentativa: 0, descartado: 0, total_inv: 0, vendas: 0, receita: 0 };
   const serie_diaria = {};
   const serie_semanal = { "S1": criarObjSemana("S1"), "S2": criarObjSemana("S2"), "S3": criarObjSemana("S3"), "S4": criarObjSemana("S4"), "S5": criarObjSemana("S5") };
@@ -303,10 +357,54 @@ function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
     cplag: resumo.agendamentos > 0 ? (resumo.total_inv / resumo.agendamentos) : 0,
     roas: resumo.total_inv > 0 ? (resumo.receita / resumo.total_inv) : 0
   };
-  return {
+
+
+  // -------------------------------------------------------------
+  // LIMPEZA E PREENCHIMENTO DO GRÁFICO DE EVOLUÇÃO DIÁRIA
+  // Garante que mostre apenas o mês atual e inclua dias vazios (0)
+  // -------------------------------------------------------------
+  let serie_diaria_filtrada = Object.values(serie_diaria);
+  
+  if (!config.isYear && config.mes !== null) {
+      const prefix = config.ano + "-" + String(config.mes + 1).padStart(2, '0');
+      const diasDoMes = new Date(config.ano, config.mes + 1, 0).getDate();
+      const mapDias = {};
+      
+      // Salva apenas os dias que pertencem ao mês alvo
+      serie_diaria_filtrada.forEach(d => { 
+        if (d.data.startsWith(prefix)) mapDias[d.data] = d; 
+      });
+      
+      serie_diaria_filtrada = [];
+      // Preenche do dia 1 ao fim do mês
+      for (let d = 1; d <= diasDoMes; d++) {
+          const ds = prefix + "-" + String(d).padStart(2, '0');
+          serie_diaria_filtrada.push(mapDias[ds] || criarDia(ds));
+      }
+  } else {
+      // Ano Todo: preenche todos os dias do ano para evitar buracos e linhas desconexas
+      const mapDias = {};
+      serie_diaria_filtrada.forEach(d => {
+        if (d.data.startsWith(config.ano.toString())) mapDias[d.data] = d;
+      });
+
+      serie_diaria_filtrada = [];
+      const hoje = new Date();
+      // Mostra até o dia atual se for o ano corrente, senao mostra o ano todo.
+      const maxDate = (config.ano === hoje.getFullYear()) ? hoje : new Date(config.ano, 11, 31);
+      
+      const dAtual = new Date(config.ano, 0, 1);
+      while (dAtual <= maxDate) {
+          const ds = Utilities.formatDate(dAtual, "GMT-3", "yyyy-MM-dd");
+          serie_diaria_filtrada.push(mapDias[ds] || criarDia(ds));
+          dAtual.setDate(dAtual.getDate() + 1);
+      }
+  }
+
+  const resultado = {
     metas,
     resumo_mes: resumo_final,
-    pace: calcularPace(resumo_final, metas),
+    pace: calcularPace(resumo_final, metas, config),
     serie_semanal: Object.values(serie_semanal),
     breakdown_meta_obj: Object.values(b_meta_obj),
     breakdown_meta_cri: Object.values(b_meta_cri),
@@ -315,9 +413,11 @@ function processarDashboard(metas, midia, leads, agendamentos, agqs, vendas) {
     serie_semanal_meta:     Object.values(semanal_meta),
     serie_semanal_google:   Object.values(semanal_google),
     serie_semanal_organico: Object.values(semanal_organico),
-    serie_diaria: Object.values(serie_diaria).sort((a,b) => a.data.localeCompare(b.data)),
+    serie_diaria: serie_diaria_filtrada,
     updated_at: new Date().toISOString()
   };
+  
+  return resultado;
 }
 
 /**

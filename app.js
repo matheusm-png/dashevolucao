@@ -7,13 +7,23 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwNIl3WoIo3cAAHt6wexcMj
 let charts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchData();
-    setInterval(fetchData, 25 * 60 * 1000);
-    document.getElementById('refresh-btn').addEventListener('click', fetchData);
+    fetchData(false);
+    setInterval(() => fetchData(false), 25 * 60 * 1000);
+    document.getElementById('refresh-btn').addEventListener('click', () => fetchData(true));
+    
+    const monthSelector = document.getElementById('month-selector');
+    if (monthSelector) {
+        monthSelector.addEventListener('change', () => fetchData(false));
+    }
 });
 
-async function fetchData() {
+async function fetchData(forceRefresh = false) {
     showLoading(true);
+    
+    const monthSelector = document.getElementById('month-selector');
+    const selectedMonth = monthSelector ? monthSelector.value : '4';
+    let finalUrl = `${API_URL}?mes=${selectedMonth}&ano=2026`;
+    if (forceRefresh) finalUrl += '&refresh=true';
     
     // Dados de teste para garantir que o dashboard renderiza mesmo que o Google falhe
     const MOCK_DATA = {
@@ -72,7 +82,7 @@ async function fetchData() {
     }, 15000);
 
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch(finalUrl);
         const data = await response.json();
         
         clearTimeout(timeout);
@@ -192,9 +202,21 @@ function updateStage(id, perc, val, tag) {
 
 // ── PACE ATÉ O FIM DO MÊS ─────────────────────────────────
 function renderPace(r, metas, pace) {
+    const paceContent = document.getElementById('pace-content');
+    const paceEmpty = document.getElementById('pace-empty');
+    
+    if (!pace) {
+        if (paceContent) paceContent.style.display = 'none';
+        if (paceEmpty) paceEmpty.style.display = 'block';
+        return;
+    } else {
+        if (paceContent) paceContent.style.display = 'block';
+        if (paceEmpty) paceEmpty.style.display = 'none';
+    }
+
     // Dias restantes info
     const diasInfoEl = document.getElementById('pace-dias-info');
-    if (diasInfoEl && pace) {
+    if (diasInfoEl) {
         diasInfoEl.innerHTML = `
             <span class="pdi pdi-corrido"><i data-lucide="calendar-days"></i> ${pace.dias_corridos_restantes} dias corridos</span>
             <span class="pdi pdi-util"><i data-lucide="briefcase"></i> ${pace.dias_uteis_restantes} dias úteis</span>
